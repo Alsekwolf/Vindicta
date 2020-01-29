@@ -1,5 +1,3 @@
-#include "defineCommon.inc"
-
 /*
 	Author: Sparker
 
@@ -16,11 +14,11 @@
 
 params ["_vehicle",["_type",-1]];
 
-pr _cargo = [];
-pr _jnl_cargo = 0;
+private _cargo = [];
+private _jnl_cargo = 0;
 {
-	pr _object = _x;
-	pr _jnl_cargo = _object getVariable ["jnl_cargo", Nil];
+	private _object = _x;
+	private _jnl_cargo = _object getVariable ["jnl_cargo", Nil];
 	if (! isNil "_jnl_cargo") then
 	{
 		if(_type == -1 || _type == (_jnl_cargo select 0) )then{

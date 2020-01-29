@@ -1,5 +1,3 @@
-#include "defineCommon.inc"
-
 /*
 	Author: Jeroen Notenbomer
 
@@ -20,14 +18,14 @@ params ["_vehicle","_object","_nodeID"];
 diag_log ["node",_nodeID];
 
 //Find the location of node
-pr _typeNode = _object call jn_fnc_logistics_getCargoType;
-pr _nodePos = (([_vehicle,_typeNode] call jn_fnc_logistics_getNodes) select _nodeID) select 0;
+private _typeNode = _object call jn_fnc_logistics_getCargoType;
+private _nodePos = (([_vehicle,_typeNode] call jn_fnc_logistics_getNodes) select _nodeID) select 0;
 
 
 //Find the offset for _object
-pr _objectModel = gettext (configfile >> "CfgVehicles" >> typeOf _object >> "model");
-pr _objectOffset = [0, 0, 0];
-pr _objectDir = [1, 0, 0];
+private _objectModel = gettext (configfile >> "CfgVehicles" >> typeOf _object >> "model");
+private _objectOffset = [0, 0, 0];
+private _objectDir = [1, 0, 0];
 
 if(_typeNode == 0) then //Weapon objects use pre-defined offset
 {

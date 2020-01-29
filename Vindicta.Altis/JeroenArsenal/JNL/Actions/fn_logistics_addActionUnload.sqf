@@ -1,8 +1,6 @@
-#include "defineCommon.inc"
-
 params ["_vehicle"];
 
-pr _unloadActionID = _vehicle getVariable ["jnl_unloadActionID", Nil];
+private _unloadActionID = _vehicle getVariable ["jnl_unloadActionID", Nil];
 
 //Check if action exists already
 if(!isnil "_unloadActionID") then

@@ -1,5 +1,3 @@
-#include "defineCommon.inc"
-
 params["_vehicle","_object", ["_allowUnload", true],["_playAnimation",true]];
 
 /*
@@ -14,11 +12,11 @@ Returns:
 
 //Get the id of the node to load the _object
 
-pr _nodeID = [_vehicle, _object] call jn_fnc_logistics_canLoad;
+private _nodeID = [_vehicle, _object] call jn_fnc_logistics_canLoad;
 
 if(_nodeID < 0) exitWith {_nodeID;}; //Can't load the _object
 
-pr _objectType = _object call jn_fnc_logistics_getCargoType;
+private _objectType = _object call jn_fnc_logistics_getCargoType;
 _object setVariable ["jnl_cargo", [_objectType, _nodeID], true];
 
 
@@ -34,9 +32,9 @@ if _playAnimation then{
 	[_vehicle,_object] spawn {
 		params ["_vehicle","_object"];
 		_vehicle setVariable ["jnl_isUnloading",true, true];
-		pr _nodeArray = _object getVariable ["jnl_cargo",[0,0]];
-		pr _objectType = _nodeArray select 0;
-		pr _nodeID = _nodeArray select 1;
+		private _nodeArray = _object getVariable ["jnl_cargo",[0,0]];
+		private _objectType = _nodeArray select 0;
+		private _nodeID = _nodeArray select 1;
 
 		/*
 		if(_objectType == 0)then{//if its a weapon
@@ -44,27 +42,28 @@ if _playAnimation then{
 		};
 		*/
 
-		pr _bbv = (boundingBoxReal _vehicle select 0 select 1) + ((boundingCenter _vehicle) select 1);
-		pr _bbo = (boundingBoxReal _object select 0 select 1) + ((boundingCenter _object) select 1);
-		pr _yEnd = _bbv + _bbo - 0.1; //Y end(rear) of the car
-		pr _cargoOffsetAndDir = [_vehicle, _object, _nodeID] call jn_fnc_logistics_getCargoOffsetAndDir;
-		pr _locEnd = _cargoOffsetAndDir select 0;
-		pr _locStart = [_locEnd select 0, _yEnd, _locEnd select 2];
+		private _bbv = (boundingBoxReal _vehicle select 0 select 1) + ((boundingCenter _vehicle) select 1);
+		private _bbo = (boundingBoxReal _object select 0 select 1) + ((boundingCenter _object) select 1);
+		private _yEnd = _bbv + _bbo - 0.1; //Y end(rear) of the car
+		private _cargoOffsetAndDir = [_vehicle, _object, _nodeID] call jn_fnc_logistics_getCargoOffsetAndDir;
+		private _locEnd = _cargoOffsetAndDir select 0;
+		private _locStart = [_locEnd select 0, _yEnd, _locEnd select 2];
 		//Set initial position
 		_object attachto [_vehicle, _locStart];
-		_object setVectorDirAndUp [_cargoOffsetAndDir select 1, [0, 0, 1]];
-		pr _step = 0.1;
-		
+		if (_object isKindOf "CAManBase") then {_object setVectorDirAndUp [_cargoOffsetAndDir select 1, [0, 0, 0]]} else {_object setVectorDirAndUp [_cargoOffsetAndDir select 1, [0, 0, 1]]};
+		private _step = 0.1;
+
 		//lock seats
 		//Need to call the function here, because it gets data from objects attached to the vehicle
 		sleep 0.1;
-		[_vehicle] remoteExec ["jn_fnc_logistics_lockSeats",[0, -2] select isDedicated,_vehicle];
-		
+		[_vehicle] remoteExec ["jn_fnc_logistics_lockSeats",0,_vehicle];
+
 		//Push it in till it's in place!
 		while {_locStart select 1 < _locEnd select 1}do{
 			_locStart = _locStart vectorAdd [0, _step, 0];
 			_object attachto [_vehicle, _locStart];
-			_object setVectorDirAndUp [_cargoOffsetAndDir select 1, [0, 0, 1]];
+			//_object setVectorDirAndUp [_cargoOffsetAndDir select 1, [0, 0, 1]];
+			if (_object isKindOf "CAManBase") then {_object setVectorDirAndUp [_cargoOffsetAndDir select 1, [0, 0, 0]]} else {_object setVectorDirAndUp [_cargoOffsetAndDir select 1, [0, 0, 1]]};
 			sleep 0.1;
 		};
 
@@ -75,7 +74,7 @@ if _playAnimation then{
 		_vehicle setVariable ["jnl_isUnloading",false, true];
 	};
 }else{
-	pr _offsetAndDir = [_vehicle,_object,_nodeID] call jn_fnc_logistics_getCargoOffsetAndDir;
+	private _offsetAndDir = [_vehicle,_object,_nodeID] call jn_fnc_logistics_getCargoOffsetAndDir;
 	_object hideObject true;//hide ugly rotation (to N and back to propper rotation)
 	_object attachTo [_vehicle, _offsetAndDir select 0];
 	_object SetVectorDirAndUp [_offsetAndDir select 1, [0, 0, 1]];
@@ -85,17 +84,17 @@ if _playAnimation then{
 //Add action to unload
 if(_allowUnload) then
 {
-	[_vehicle] remoteExec ["jn_fnc_logistics_addActionUnload",[0, -2] select isDedicated,_vehicle];
+	[_vehicle] remoteExec ["jn_fnc_logistics_addActionUnload",0,_vehicle];
 };
 
 //Add getOut event hanldler and getin Action
 if(_objectType == 0) then
 {
-	[_object] remoteExec ["jn_fnc_logistics_addEventGetoutWeapon",[0, -2] select isDedicated,_object];
+	[_object] remoteExec ["jn_fnc_logistics_addEventGetoutWeapon",0,_object];
 
-	[_vehicle,_object] remoteExec ["jn_fnc_logistics_addActionGetinWeapon",[0, -2] select isDedicated,_vehicle];
+	[_vehicle,_object] remoteExec ["jn_fnc_logistics_addActionGetinWeapon",0,_vehicle];
 };
-
+[_object] spawn A3A_fnc_VEHdespawner;
 //save ACE settings to we can reset them when we unload
 _ace_dragging_canDrag = _object getVariable ["ace_dragging_canDrag",false];
 _ace_dragging_canCarry = _object getVariable ["ace_dragging_canCarry",false];

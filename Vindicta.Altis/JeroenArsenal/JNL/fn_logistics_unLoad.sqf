@@ -1,5 +1,3 @@
-#include "defineCommon.inc"
-
 /*
 	Author: Jeroen Notenbomer
 
@@ -16,13 +14,13 @@
 params ["_vehicle"];
 
 //find last attached cargo object
-pr _object = objNull;
-pr _nodeLast = -1;
+private _object = objNull;
+private _nodeLast = -1;
 {
-	pr _array = _x getVariable ["jnl_cargo",nil];//returns nr of node if the object was attached by JNL
+	private _array = _x getVariable ["jnl_cargo",nil];//returns nr of node if the object was attached by JNL
 
 	if(!isNil "_array")then{
-		pr _node = _array select 1;
+		private _node = _array select 1;
 		if(_node > _nodeLast)then{
 			_nodeLast = _node;
 			_object = _x;
@@ -39,19 +37,19 @@ if(!isnull _object)then{
 	[_vehicle,_object] spawn {
 		params ["_vehicle","_object"];
 		_vehicle setVariable ["jnl_isUnloading",true, true];
-		pr _nodeArray = _object getVariable ["jnl_cargo",[0,0]];
-		pr _objectType = _nodeArray select 0;
-		pr _nodeID = _nodeArray select 1;
+		private _nodeArray = _object getVariable ["jnl_cargo",[0,0]];
+		private _objectType = _nodeArray select 0;
+		private _nodeID = _nodeArray select 1;
 
 		if(_objectType == 0)then{//if its a weapon
 			_object enableWeaponDisassembly true;
 		};
 
-		pr _loc1 = [_vehicle, _object, _nodeID] call jn_fnc_logistics_getCargoOffsetAndDir select 0;
+		private _loc1 = [_vehicle, _object, _nodeID] call jn_fnc_logistics_getCargoOffsetAndDir select 0;
 
-		pr _bbv = (boundingBoxReal _vehicle select 0 select 1) + ((boundingCenter _vehicle) select 1);
-		pr _bbo = (boundingBoxReal _object select 0 select 1) + ((boundingCenter _object) select 1);
-		pr _yEnd = _bbv + _bbo - 0.1;
+		private _bbv = (boundingBoxReal _vehicle select 0 select 1) + ((boundingCenter _vehicle) select 1);
+		private _bbo = (boundingBoxReal _object select 0 select 1) + ((boundingCenter _object) select 1);
+		private _yEnd = _bbv + _bbo - 0.1;
 
 		while {_loc1 select 1 > _yEnd}do{
 			sleep 0.1;
@@ -60,17 +58,17 @@ if(!isnull _object)then{
 		};
 
 		//set speed incase vehicle was moving
-		pr _vel = velocity _vehicle;
+		private _vel = velocity _vehicle;
 		detach _object;
 		_object setVelocity _vel;
 
 		_vehicle setVariable ["jnl_isUnloading",false, true];
 		//Clear object's jnl_cargo variable
 		_object setVariable ["jnl_cargo", Nil];
-		
+
 		//re-enable seats
 		//need to call the function here, since it gets data from jnl_cargo!
-		[_vehicle] remoteExec ["jn_fnc_logistics_lockSeats",[0, -2] select isDedicated,_vehicle];
+		[_vehicle] remoteExec ["jn_fnc_logistics_lockSeats",0,_vehicle];
 	};
 
 	_return = true;
@@ -78,17 +76,17 @@ if(!isnull _object)then{
 
 //remove action if it was the last peace of cargo on the vehicle
 if(_nodeLast == 0)then{
-	[_vehicle] remoteExec ["jn_fnc_logistics_removeActionUnload",[0, -2] select isDedicated, _vehicle];
-	[_vehicle] remoteExec ["jn_fnc_logistics_removeActionGetInWeapon", [0, -2] select isDedicated, _vehicle];
-	[_object] remoteExec ["jn_fnc_logistics_removeEventGetOut", [0, -2] select isDedicated, _object];
+	[_vehicle] remoteExec ["jn_fnc_logistics_removeActionUnload",0, _vehicle];
+	[_vehicle] remoteExec ["jn_fnc_logistics_removeActionGetInWeapon", 0, _vehicle];
+	[_object] remoteExec ["jn_fnc_logistics_removeEventGetOut", 0, _object];
 };
 
 //reset ACE carry if there was one
 _ace_dragging_canDrag = _object getVariable ["ace_dragging_canDrag_old",nil];
 _ace_dragging_canCarry = _object getVariable ["ace_dragging_canCarry_old",nil];
 _ace_cargo_canLoad = _object getVariable ["ace_cargo_canLoad_old",nil];
-_object setVariable ["ace_dragging_canDrag",_ace_dragging_canDrag];
-_object setVariable ["ace_dragging_canCarry",_ace_dragging_canCarry];
-_object setvariable ["ace_cargo_canLoad",_ace_cargo_canLoad];
+if !(isNil "_ace_dragging_canDrag") then {_object setVariable ["ace_dragging_canDrag",_ace_dragging_canDrag]};
+if !(isNil "_ace_dragging_canCarry") then {_object setVariable ["ace_dragging_canCarry",_ace_dragging_canCarry]};
+if !(isNil "_ace_cargo_canLoad") then {_object setvariable ["ace_cargo_canLoad",_ace_cargo_canLoad]};
 
 _return

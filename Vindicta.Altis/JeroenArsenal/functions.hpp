@@ -57,10 +57,10 @@ class JN {
 		class garage_requestOpen {};
 		class garage_requestClose {};
 		class garage_requestVehicle {};
+		class garage_getVehicleIndex {};
 		class garage_getVehicleData {};
 		class garage_garageVehicle {};
 		class garage_canGarageVehicle {};
-		class garage_updatePoints {};
 	};
 	
 	/*
@@ -119,7 +119,7 @@ class JN {
 	
 	class JNL {
 		file = "JeroenArsenal\JNL";
-		class logistics_init {preinit = 1;};
+		class logistics_init {};
 		class logistics_load {};
 		class logistics_unLoad {};
 		class logistics_addAction {};
