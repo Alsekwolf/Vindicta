@@ -87,6 +87,9 @@ if(_allowUnload) then
 	[_vehicle] remoteExec ["jn_fnc_logistics_addActionUnload",0,_vehicle];
 };
 
+//changes which garrison it's in so it won't despawn (or in otherwords just calls the ace load function)
+["cargoLoaded", [_object, _vehicle]] call CBA_fnc_globalEvent;
+
 //Add getOut event hanldler and getin Action
 if(_objectType == 0) then
 {

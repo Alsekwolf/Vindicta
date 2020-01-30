@@ -40,6 +40,19 @@ if (isNil "Unit_aceCargoUnloaded_EH" && isServer) then { // Only server needs th
 		_this call Unit_fnc_EH_aceCargoUnloaded;
 	}] call CBA_fnc_addEventHandler;
 };
+
+if (isNil "Unit_CargoLoaded_EH" && isServer) then { // Only server needs this event
+	Unit_CargoLoaded_EH = ["cargoLoaded", 
+	{
+		_this call Unit_fnc_EH_aceCargoLoaded;
+	}] call CBA_fnc_addEventHandler;
+};
+if (isNil "Unit_CargoUnloaded_EH" && isServer) then { // Only server needs this event
+	Unit_CargoUnloaded_EH = ["cargoUnloaded", 
+	{
+		_this call Unit_fnc_EH_aceCargoUnloaded;
+	}] call CBA_fnc_addEventHandler;
+};
 #endif
 
 CLASS(UNIT_CLASS_NAME, "Storable")

@@ -81,6 +81,9 @@ if(_nodeLast == 0)then{
 	[_object] remoteExec ["jn_fnc_logistics_removeEventGetOut", 0, _object];
 };
 
+//changes which garrison it's in so it won't despawn (or in otherwords just calls the ace unload function)
+["cargoUnloaded", [_object, _vehicle]] call CBA_fnc_globalEvent;
+
 //reset ACE carry if there was one
 _ace_dragging_canDrag = _object getVariable ["ace_dragging_canDrag_old",nil];
 _ace_dragging_canCarry = _object getVariable ["ace_dragging_canCarry_old",nil];
