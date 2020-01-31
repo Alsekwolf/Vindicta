@@ -66,6 +66,8 @@ if(!isnull _object)then{
 		//Clear object's jnl_cargo variable
 		_object setVariable ["jnl_cargo", Nil];
 
+		[_vehicle, _object, true] call jn_fnc_logistics_setMass;
+		
 		//re-enable seats
 		//need to call the function here, since it gets data from jnl_cargo!
 		[_vehicle] remoteExec ["jn_fnc_logistics_lockSeats",0,_vehicle];
@@ -80,6 +82,7 @@ if(_nodeLast == 0)then{
 	[_vehicle] remoteExec ["jn_fnc_logistics_removeActionGetInWeapon", 0, _vehicle];
 	[_object] remoteExec ["jn_fnc_logistics_removeEventGetOut", 0, _object];
 };
+
 
 //changes which garrison it's in so it won't despawn (or in otherwords just calls the ace unload function)
 ["cargoUnloaded", [_object, _vehicle]] call CBA_fnc_globalEvent;

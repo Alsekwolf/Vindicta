@@ -11,7 +11,6 @@ Returns:
 */
 
 //Get the id of the node to load the _object
-
 private _nodeID = [_vehicle, _object] call jn_fnc_logistics_canLoad;
 
 if(_nodeID < 0) exitWith {_nodeID;}; //Can't load the _object
@@ -72,6 +71,8 @@ if _playAnimation then{
 		//_vehicle call jn_fnc_logistics_lockSeats;//needs to be called after detach
 
 		_vehicle setVariable ["jnl_isUnloading",false, true];
+		
+		[_vehicle, _object, false] call jn_fnc_logistics_setMass;
 	};
 }else{
 	private _offsetAndDir = [_vehicle,_object,_nodeID] call jn_fnc_logistics_getCargoOffsetAndDir;
@@ -79,6 +80,8 @@ if _playAnimation then{
 	_object attachTo [_vehicle, _offsetAndDir select 0];
 	_object SetVectorDirAndUp [_offsetAndDir select 1, [0, 0, 1]];
 	_object hideObject false;
+	
+	[_vehicle, _object, false] call jn_fnc_logistics_setMass;
 };
 
 //Add action to unload
