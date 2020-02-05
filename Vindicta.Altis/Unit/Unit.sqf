@@ -460,6 +460,9 @@ CLASS(UNIT_CLASS_NAME, "Storable")
 
 					// Initialize limited arsenal
 					T_CALLM0("limitedArsenalOnSpawn");
+					
+					//Adds logistics action
+					_objectHandle call jn_fnc_logistics_addAction;
 
 					//CALLM1(_thisObject, "createAI", "AIUnitVehicle");		// A box probably has no AI?			
 					// Give intel to this unit
