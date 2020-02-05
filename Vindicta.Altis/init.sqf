@@ -18,3 +18,6 @@ if (isServer) then {
         };  
     };   
 };
+
+// Ayla Stuffs
+_AceKeepALive = execVM "AylaFunctions\ace_keep_alive.sqf";
