@@ -1,8 +1,6 @@
-#include "defineCommon.inc"
-
 params ["_vehicle","_object"];
 
-pr _getInGunnerActionID = _vehicle getVariable ["jnl_getInGunnerActionID", nil];
+private _getInGunnerActionID = _vehicle getVariable ["jnl_getInGunnerActionID", nil];
 
 //Check if action exists already
 if(!isnil "_getInGunnerActionID") then
@@ -13,7 +11,7 @@ if(!isnil "_getInGunnerActionID") then
 _getInGunnerActionID = _vehicle addAction [
 	"Get in Static",
 	{
-		pr _vehicle = _this select 0;
+		private _vehicle = _this select 0;
 		player moveInGunner ([_vehicle] call jn_fnc_logistics_getCargo select 0);
 	}, Nil, 0, true, false, "", "vehicle player == player", 5, false, ""
 ];

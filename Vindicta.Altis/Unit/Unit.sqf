@@ -41,6 +41,19 @@ if (isNil "Unit_aceCargoUnloaded_EH" && isServer) then { // Only server needs th
 		_this call Unit_fnc_EH_aceCargoUnloaded;
 	}] call CBA_fnc_addEventHandler;
 };
+
+if (isNil "Unit_CargoLoaded_EH" && isServer) then { // Only server needs this event
+	Unit_CargoLoaded_EH = ["cargoLoaded", 
+	{
+		_this call Unit_fnc_EH_aceCargoLoaded;
+	}] call CBA_fnc_addEventHandler;
+};
+if (isNil "Unit_CargoUnloaded_EH" && isServer) then { // Only server needs this event
+	Unit_CargoUnloaded_EH = ["cargoUnloaded", 
+	{
+		_this call Unit_fnc_EH_aceCargoUnloaded;
+	}] call CBA_fnc_addEventHandler;
+};
 #endif
 
 CLASS(UNIT_CLASS_NAME, "Storable")
@@ -452,11 +465,14 @@ CLASS(UNIT_CLASS_NAME, "Storable")
 								
 							};
 						};
-
+          
 						_data set [UNIT_DATA_ID_OBJECT_HANDLE, _objectHandle];
 
 						// Initialize limited arsenal
 						T_CALLM0("limitedArsenalOnSpawn");
+
+					  //Adds logistics action
+					  _objectHandle call jn_fnc_logistics_addAction;
 
 						//CALLM1(_thisObject, "createAI", "AIUnitVehicle");		// A box probably has no AI?			
 						// Give intel to this unit
