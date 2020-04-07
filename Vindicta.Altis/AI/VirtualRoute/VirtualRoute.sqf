@@ -48,7 +48,7 @@ CLASS("VirtualRoute", "")
 	*/
 	METHOD("new") {
 		params [
-			"_thisObject",
+			P_THISOBJECT,
 			"_from",
 			"_destination",
 			["_recalculateInterval", -1],
@@ -58,9 +58,10 @@ CLASS("VirtualRoute", "")
 			["_async", true],
 			["_debugDraw", false]
 		];
-		
-		T_SETV("from", _from);
-		T_SETV("destination", _destination);
+		private _fromATL = [_from#0, _from#1, 0];
+		private _destinationATL = [_destination#0, _destination#1, 0];
+		T_SETV("from", _fromATL);
+		T_SETV("destination", _destinationATL);
 		T_SETV("recalculateInterval", _recalculateInterval);
 
 		T_SETV("callbackArgs", _callbackArgs);
@@ -77,22 +78,23 @@ CLASS("VirtualRoute", "")
 			T_SETV("costFn", _costFn);
 		};
 
+#ifdef DEBUG_FAST_VIRTUALROUTE
+		pr _fast_speedFn = { 120 * 0.277778 };
+		T_SETV("speedFn", _fast_speedFn);
+#else
 		if(_speedFn isEqualType "") then {
 			pr _default_speedFn = {
 				params ["_road", "_next_road", "_callbackArgs"];
-#ifdef CMDR_AI_TESTING
-				300
-#else
 				if([_road] call misc_fnc_isHighWay) exitWith {
 					60 * 0.277778
 				};
 				40 * 0.277778
-#endif
 			};
 			T_SETV("speedFn", _default_speedFn);
 		} else {
 			T_SETV("speedFn", _speedFn);
 		};
+#endif
 
 		T_SETV("calculated", false);
 		T_SETV("failed", false);
@@ -111,7 +113,7 @@ CLASS("VirtualRoute", "")
 
 		// Function that calculates the route
 		pr _calcRoute = {
-			params ["_thisObject"];
+			params [P_THISOBJECT];
 
 			T_PRVAR(from);
 			T_PRVAR(destination);
@@ -140,7 +142,6 @@ CLASS("VirtualRoute", "")
 				};
 				// This fills in all the actual roads between the nodes.
 				private _fullPath = [_path] call gps_core_fnc_generatePathHelpers;
-
 				T_SETV("route", _fullPath);
 
 				// Generating waypoints for AI navigation
@@ -175,6 +176,7 @@ CLASS("VirtualRoute", "")
 				// Set it last
 				T_SETV("calculated", true);
 			} catch {
+				OOP_WARNING_2("VirtualRoute calculation failed between %1 and %2", str _from, str _destination);
 				T_SETV("failed", true);
 			};
 		};
@@ -214,7 +216,7 @@ CLASS("VirtualRoute", "")
 	Start moving during process calls.
 	*/
 	METHOD("start") {
-		params ["_thisObject"];
+		params [P_THISOBJECT];
 
 		T_SETV("stopped", false);
 		T_SETV("last_t", time);
@@ -225,7 +227,7 @@ CLASS("VirtualRoute", "")
 	Stop moving during process calls.
 	*/
 	METHOD("stop") {
-		params ["_thisObject"];
+		params [P_THISOBJECT];
 
 		T_SETV("stopped", true);
 		T_SETV("last_t", time);
@@ -236,7 +238,7 @@ CLASS("VirtualRoute", "")
 	Update position, moving along route. Only moves if started.
 	*/
 	METHOD("process") {
-		params ["_thisObject"];
+		params [P_THISOBJECT];
 		
 		T_PRVAR(failed);
 		T_PRVAR(stopped);
@@ -293,7 +295,6 @@ CLASS("VirtualRoute", "")
 		pr _dist = _currSpeed_ms * _dt;
 
 		// Update position
-		if (_pos isEqualType objNull) then {_pos = getPos _pos}; // WTF why does it complain that _pos is object, not array??
 		_pos = _pos vectorAdd (vectorNormalized (_nextPos vectorDiff _pos) vectorMultiply _dist);
 		T_SETV("pos", _pos);
 
@@ -314,7 +315,7 @@ CLASS("VirtualRoute", "")
 	*/
 	METHOD("getConvoyPositions") {
 		params [
-			"_thisObject",
+			P_THISOBJECT,
 			"_number",
 			["_spacing", 20]
 		];
@@ -385,12 +386,12 @@ CLASS("VirtualRoute", "")
 	*/
 	METHOD("debugDraw") {
 		params [
-			"_thisObject",
+			P_THISOBJECT,
 			["_routeColor", "ColorBlack"],
 			["_waypointColor", "ColorBlack"]
 		];
 		
-		CALLM0(_thisObject, "clearDebugDraw");
+		T_CALLM0("clearDebugDraw");
 
 		T_PRVAR(route);
 
@@ -407,7 +408,7 @@ CLASS("VirtualRoute", "")
 				["color", _routeColor],
 				["size", 8],
 				["id", "gps_route_" + _thisObject + str _start + str _end]
-			] call gps_test_fnc_mapDrawLine; 
+			] call gps_test_fnc_mapDrawLine;
 		};
 
 		 T_PRVAR(waypoints);
@@ -421,7 +422,7 @@ CLASS("VirtualRoute", "")
 	Clear debug markers for this route.
 	*/
 	METHOD("clearDebugDraw") {
-		params ["_thisObject"];
+		params [P_THISOBJECT];
 		["gps_route_" + _thisObject] call gps_test_fn_clear_markers;
 		["gps_waypoint_" + _thisObject] call gps_test_fn_clear_markers;
 	} ENDMETHOD;
@@ -440,7 +441,7 @@ CLASS("VirtualRoute", "")
 	Returns: current position
 	*/
 	METHOD("getPos") {
-		params ["_thisObject"];
+		params [P_THISOBJECT];
 		T_GETV("pos")
 	} ENDMETHOD;
 
@@ -449,7 +450,7 @@ CLASS("VirtualRoute", "")
 	Returns: nothing
 	*/
 	METHOD("setPos") {
-		params ["_thisObject", ["_pos", [], [[]]] ];
+		params [P_THISOBJECT, P_ARRAY("_pos") ];
 
 		if (T_GETV("calculated")) then {
 			// Find the nearest pos in the route and its index
@@ -494,7 +495,7 @@ CLASS("VirtualRoute", "")
 	Returns: array of waypoints for AI navigation, taking account the current position
 	*/
 	METHOD("getAIWaypoints") {
-		params ["_thisObject"];
+		params [P_THISOBJECT];
 		T_GETV("waypoints")
 	} ENDMETHOD;
 

@@ -7,17 +7,17 @@ Split a garrison into two parts.
 Parent: <ActionStateTransition>
 */
 CLASS("AST_SplitGarrison", "ActionStateTransition")
-	VARIABLE_ATTR("action", [ATTR_PRIVATE]);
-	VARIABLE_ATTR("successState", [ATTR_PRIVATE]);
-	VARIABLE_ATTR("failState", [ATTR_PRIVATE]);
+	VARIABLE_ATTR("action", [ATTR_PRIVATE ARG ATTR_SAVE]);
+	VARIABLE_ATTR("successState", [ATTR_PRIVATE ARG ATTR_SAVE]);
+	VARIABLE_ATTR("failState", [ATTR_PRIVATE ARG ATTR_SAVE]);
 
 	// Inputs
-	VARIABLE_ATTR("srcGarrIdVar", [ATTR_PRIVATE]);
-	VARIABLE_ATTR("detachCompVar", [ATTR_PRIVATE]);
-	VARIABLE_ATTR("detachEffVar", [ATTR_PRIVATE]);
+	VARIABLE_ATTR("srcGarrIdVar", [ATTR_PRIVATE ARG ATTR_SAVE]);
+	VARIABLE_ATTR("detachCompVar", [ATTR_PRIVATE ARG ATTR_SAVE]);
+	VARIABLE_ATTR("detachEffVar", [ATTR_PRIVATE ARG ATTR_SAVE]);
 
 	// Outputs
-	VARIABLE_ATTR("detachedGarrIdVar", [ATTR_PRIVATE]);
+	VARIABLE_ATTR("detachedGarrIdVar", [ATTR_PRIVATE ARG ATTR_SAVE]);
 
 	/*
 	Method: new
@@ -154,7 +154,7 @@ ENDCLASS;
 		[_splitGarrIdVar]
 	);
 
-	private _endState = CALLM(_thisObject, "apply", [_world]);
+	private _endState = T_CALLM("apply", [_world]);
 	["State after apply is correct", _endState == CMDR_ACTION_STATE_END] call test_Assert;
 	["Split garrison var is valid", GET_AST_VAR(_action, _splitGarrIdVar) != -1] call test_Assert;
 
@@ -215,7 +215,7 @@ Test_unit_args = [tNATO, T_INF, T_INF_rifleman, -1];
 		[_splitGarrIdVar]
 	);
 	
-	private _endState = CALLM(_thisObject, "apply", [_world]);
+	private _endState = T_CALLM("apply", [_world]);
 
 	["State after apply is correct", _endState == CMDR_ACTION_STATE_END] call test_Assert;
 	["Split garrison var is valid", GET_AST_VAR(_action, _splitGarrIdVar) != -1] call test_Assert;

@@ -9,18 +9,16 @@ Radius is recalculated in case location is specified as destination
 Parent: <ActionStateTransition>
 */
 
-#define DEBUG
-
 CLASS("AST_MoveGarrison", "ActionStateTransition")
-	VARIABLE_ATTR("action", [ATTR_PRIVATE]);
-	VARIABLE_ATTR("successState", [ATTR_PRIVATE]);
-	VARIABLE_ATTR("failGarrisonDead", [ATTR_PRIVATE]);
-	VARIABLE_ATTR("failTargetDead", [ATTR_PRIVATE]);
-	VARIABLE_ATTR("moving", [ATTR_PRIVATE]);
+	VARIABLE_ATTR("action", [ATTR_PRIVATE ARG ATTR_SAVE]);
+	VARIABLE_ATTR("successState", [ATTR_PRIVATE ARG ATTR_SAVE]);
+	VARIABLE_ATTR("failGarrisonDead", [ATTR_PRIVATE ARG ATTR_SAVE]);
+	VARIABLE_ATTR("failTargetDead", [ATTR_PRIVATE ARG ATTR_SAVE]);
+	VARIABLE_ATTR("moving", [ATTR_PRIVATE ARG ATTR_SAVE]);
 	// Inputs
-	VARIABLE_ATTR("garrIdVar", [ATTR_PRIVATE]);
-	VARIABLE_ATTR("targetVar", [ATTR_PRIVATE]);
-	VARIABLE_ATTR("radiusVar", [ATTR_PRIVATE]);
+	VARIABLE_ATTR("garrIdVar", [ATTR_PRIVATE ARG ATTR_SAVE]);
+	VARIABLE_ATTR("targetVar", [ATTR_PRIVATE ARG ATTR_SAVE]);
+	VARIABLE_ATTR("radiusVar", [ATTR_PRIVATE ARG ATTR_SAVE]);
 
 	/*
 	Method: new
@@ -47,7 +45,7 @@ CLASS("AST_MoveGarrison", "ActionStateTransition")
 			P_AST_VAR("_targetVar"),
 			P_AST_VAR("_radiusVar")
 		];
-		
+
 		T_SETV("fromStates", _fromStates);
 		T_SETV("successState", _successState);
 		T_SETV("failGarrisonDead", _failGarrisonDead);
@@ -202,7 +200,7 @@ AST_MoveGarrison_test_fn = {
 		[CALLM1(_action, "createVariable", _target)]+
 		[CALLM1(_action, "createVariable", 200)]
 	);
-	CALLM(_thisObject, "apply", [_world])
+	T_CALLM("apply", [_world])
 };
 
 #define TARGET_POS [1, 2, 3]

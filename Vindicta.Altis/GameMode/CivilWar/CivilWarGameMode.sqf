@@ -10,6 +10,7 @@ https://docs.google.com/document/d/1DeFhqNpsT49aIXdgI70GI3GIR95LR2NnJ5cpAYYl3hE/
 #ifndef RELEASE_BUILD
 #define DEBUG_CIVIL_WAR_GAME_MODE
 #endif
+FIX_LINE_NUMBERS()
 
 gCityStateData = [
 	["Stable",     [1.0 , 1.0 , 1.0 , 1.0], "#FFFFFF"], /* CITY_STATE_STABLE */
@@ -36,6 +37,8 @@ CLASS("CivilWarGameMode", "GameModeBase")
 	VARIABLE_ATTR("activeCities", [ATTR_SAVE]);
 	// Amount of casualties during the campaign, used in getCampaignProgess method
 	VARIABLE_ATTR("casualties", [ATTR_SAVE]);
+	// Campaign progress cached value
+	VARIABLE("campaignProgress");
 
 	METHOD("new") {
 		params [P_THISOBJECT];
@@ -45,8 +48,10 @@ CLASS("CivilWarGameMode", "GameModeBase")
 		T_SETV("phase", 0);
 		T_SETV("activeCities", []);
 		T_SETV("casualties", 0);
+		T_SETV("campaignProgress", 0);
 		if (IS_SERVER) then {	// Makes no sense for client
 			T_PUBLIC_VAR("casualties");
+			T_PUBLIC_VAR("campaignProgress");
 		};
 	} ENDMETHOD;
 
@@ -89,7 +94,7 @@ CLASS("CivilWarGameMode", "GameModeBase")
 				SETV(_loc, "gameModeData", _data);
 			};
 		};
-		
+
 		PUBLIC_VAR(_loc, "gameModeData");
 
 		// Update respawn rules
@@ -135,6 +140,9 @@ CLASS("CivilWarGameMode", "GameModeBase")
 	/* protected override */ METHOD("initServerOnly") {
 		params [P_THISOBJECT];
 
+		// Call base
+		CALL_CLASS_METHOD("GameModeBase", _thisObject, "initServerOnly", []);
+	
 		// Select the cities we will consider for civil war activities
 		private _activeCities = GET_STATIC_VAR("Location", "all") select { 
 			// If it is a city with a police station
@@ -198,12 +206,14 @@ CLASS("CivilWarGameMode", "GameModeBase")
 	/* protected virtual */ METHOD("initClientOnly") {
 		params [P_THISOBJECT];
 
+		CALL_CLASS_METHOD("GameModeBase", _thisObject, "initClientOnly", []);
+		
 		["Game Mode", "Add 10 activity here", {
 			// Call to server to add the activity
 			[[getPos player], {
 				params ["_playerPos"];
 				CALL_STATIC_METHOD("AICommander", "addActivity", [ENEMY_SIDE ARG _playerPos ARG 10]);
-			}] remoteExec ["call", 0];
+			}] remoteExec ["call", ON_SERVER];
 		}] call pr0_fnc_addDebugMenuItem;
 
 		["Game Mode", "Add 50 activity here", {
@@ -211,18 +221,7 @@ CLASS("CivilWarGameMode", "GameModeBase")
 			[[getPos player], {
 				params ["_playerPos"];
 				CALL_STATIC_METHOD("AICommander", "addActivity", [ENEMY_SIDE ARG _playerPos ARG 50]);
-			}] remoteExec ["call", 0];
-		}] call pr0_fnc_addDebugMenuItem;
-
-		["Game Mode", "Get local info", {
-			// Call to server to get the info
-			[[getPos player, clientOwner], {
-				params ["_playerPos", "_clientOwner"];
-				private _enemyCmdr = CALL_STATIC_METHOD("AICommander", "getAICommander", [ENEMY_SIDE]);
-				private _activity = CALLM(_enemyCmdr, "getActivity", [_playerPos ARG 500]);
-				// Callback to client with the result
-				[format["Phase %1, local activity %2", GETV(gGameMode, "phase"), _activity]] remoteExec ["systemChat", _clientOwner];
-			}] remoteExec ["spawn", 0];
+			}] remoteExec ["call", ON_SERVER];
 		}] call pr0_fnc_addDebugMenuItem;
 
 		["Game Mode", "Update game mode now", {
@@ -252,8 +251,14 @@ CLASS("CivilWarGameMode", "GameModeBase")
 		// Call the base class method
 		pr _restored = CALL_CLASS_METHOD("GameModeBase", _thisObject, "playerSpawn", [_newUnit ARG _oldUnit ARG _respawn ARG _respawnDelay ARG _restoreData ARG _restorePosition]);
 		if(!_restored) then {
-			// Always spawn with a random civi kit and pistol.
-			_newUnit call fnc_selectPlayerSpawnLoadout;
+			// Select random player gear
+			private _civTemplate = CALLM1(gGameMode, "getTemplate", civilian);
+			private _templateClass = [_civTemplate, T_INF, T_INF_rifleman, -1] call t_fnc_select;
+			if ([_templateClass] call t_fnc_isLoadout) then {
+				[_newUnit, _templateClass] call t_fnc_setUnitLoadout;
+			} else {
+				OOP_ERROR_0("Only loadouts are valid for Civilian T_INF_rifleman faction templates (not classes)");
+			};
 			// Holster pistol
 			_newUnit action ["SWITCHWEAPON", player, player, -1];
 		};
@@ -263,6 +268,8 @@ CLASS("CivilWarGameMode", "GameModeBase")
 	/* protected override */ METHOD("update") {
 		params [P_THISOBJECT];
 		
+		T_CALLM("updateCampaignProgress", []);
+
 		T_CALLM("updatePhase", []);
 		
 		//T_CALLM("updateEndCondition", []); // No need for it right now
@@ -280,6 +287,25 @@ CLASS("CivilWarGameMode", "GameModeBase")
 
 	} ENDMETHOD;
 
+	METHOD("updateCampaignProgress") {
+		params [P_THISOBJECT];
+		private _totalInstability = 0;
+		private _maxInstability = 1;
+
+		{
+			_totalInstability = _totalInstability + _x;
+			_maxInstability = _maxInstability + 1;
+		} forEach (T_GETV("activeCities") 
+			apply { GETV(_x, "gameModeData") }
+			apply { GETV(_x, "instability") });
+
+		private _stabRatio = _totalInstability / _maxInstability;
+		// https://www.desmos.com/calculator/nttiqqlvg9
+		// Hits 0.2 when _stabRatio is 0.05 and 1 when _stabRatio is 0.8
+		//private _campaignProgress = 1 min (0.9 * log(15 * _stabRatio + 1));
+		T_SETV_PUBLIC("campaignProgress", _stabRatio);
+	} ENDMETHOD;
+	
 	METHOD("updatePhase") {
 		params [P_THISOBJECT];
 
@@ -292,6 +318,7 @@ CLASS("CivilWarGameMode", "GameModeBase")
 				#ifndef RELEASE_BUILD
 				systemChat "Moving to phase 1";
 				#endif
+				FIX_LINE_NUMBERS()
 
 				// Scenario just initialized so do setup
 				
@@ -301,7 +328,7 @@ CLASS("CivilWarGameMode", "GameModeBase")
 				T_SETV("phase", 1);
 			};
 			/*
-			Locations are not taken, roadblocks are not deployed				
+			Locations are not taken, roadblocks are not deployed
 			*/
 			case 1: {
 				// We want to start deploying roadblocks fairly early
@@ -309,6 +336,7 @@ CLASS("CivilWarGameMode", "GameModeBase")
 					#ifndef RELEASE_BUILD
 					"MOVING TO PHASE 2" remoteExec ["hint"];
 					#endif
+					FIX_LINE_NUMBERS()
 
 					// Set enemy commander strategy
 					private _strategy = NEW("Phase2CmdrStrategy", []);
@@ -328,6 +356,7 @@ CLASS("CivilWarGameMode", "GameModeBase")
 					#ifndef RELEASE_BUILD
 					"MOVING TO PHASE 3" remoteExec ["hint"];
 					#endif
+					FIX_LINE_NUMBERS()
 
 					// Set enemy commander strategy
 					private _strategy = NEW("Phase3CmdrStrategy", []);
@@ -357,6 +386,7 @@ CLASS("CivilWarGameMode", "GameModeBase")
 
 		OOP_INFO_1("Airports: %1", _airports);
 
+		pr _campaignProgress = T_CALLM0("getCampaignProgress");
 		pr _playerSide = T_CALLM0("getPlayerSide");
 		pr _nAirportsOwned = 0;
 
@@ -376,10 +406,23 @@ CLASS("CivilWarGameMode", "GameModeBase")
 
 		OOP_INFO_1("Owned airports: %1", _nAirportsOwned);
 
-		if ((count _airports) == _nAirportsOwned && _nAirportsOwned > 0) then {
+		if (((count _airports) == _nAirportsOwned && _nAirportsOwned > 0)) then {
 			// I dunno, spam in the chat maybe or make a notification?
 			// Just do nothing for now I guess :/
 			//"You won the game! Congratulations!" remoteExecCall ["systemChat", 0];
+			{
+				"winscreen" cutText ["You won! The enemy have no fight left in them.", "PLAIN", 5];
+				sleep 10;
+				"winscreen" cutFadeOut 20;
+			} remoteExecCall ["spawn", ON_CLIENTS];
+		};
+
+		if(_campaignProgress > 0.95) then {
+			{
+				"winscreen2" cutText ["You won! The people are all with you!", "PLAIN", 5];
+				sleep 10;
+				"winscreen2" cutFadeOut 20;
+			} remoteExecCall ["spawn", ON_CLIENTS];
 		};
 
 	} ENDMETHOD;
@@ -468,10 +511,12 @@ CLASS("CivilWarGameMode", "GameModeBase")
 
 	/* protected virtual */ METHOD("getCampaignProgress") {
 		params [P_THISOBJECT];
-		pr _casualties = T_GETV("casualties") max 0;
-		// https://www.desmos.com/calculator/t3ci9okkwk
-		pr _x = _casualties*0.007;
-		_x/( sqrt(1 + _x^2) )
+		#ifdef DEBUG_END_GAME
+		0.9
+		#else
+		T_GETV("campaignProgress");
+		#endif
+		FIX_LINE_NUMBERS()
 	} ENDMETHOD;
 
 	/* public virtual override*/ METHOD("getPlayerSide") {
@@ -492,6 +537,8 @@ CLASS("CivilWarGameMode", "GameModeBase")
 
 		// Broadcast public variables
 		PUBLIC_VAR(_thisObject, "casualties");
+
+		T_CALLM0("updateCampaignProgress");
 
 		true
 	} ENDMETHOD;
@@ -542,7 +589,7 @@ CLASS("CivilWarCityData", "CivilWarLocationData")
 		// CivPresence civilians are being arrested too, so there is no need for it any more
 		//_ambientMissions pushBack (NEW("HarassedCiviliansAmbientMission", [_city ARG [CITY_STATE_STABLE]]));
 
-		_ambientMissions pushBack (NEW("MilitantCiviliansAmbientMission", [_city ARG [CITY_STATE_AGITATED]]));
+		_ambientMissions pushBack (NEW("MilitantCiviliansAmbientMission", [_city ARG [CITY_STATE_AGITATED ARG CITY_STATE_IN_REVOLT]]));
 
 		// It's quite confusing so I have disabled it for now, sorry
 		_ambientMissions pushBack (NEW("SaboteurCiviliansAmbientMission", [_city ARG [CITY_STATE_AGITATED ARG CITY_STATE_IN_REVOLT]]));
@@ -570,43 +617,69 @@ CLASS("CivilWarCityData", "CivilWarLocationData")
 		private _cityPos = CALLM0(_city, "getPos");
 		private _cityRadius = (300 max GETV(_city, "boundingRadius")) min 700;
 		private _cityCivCap = CALLM0(_city, "getCapacityCiv");
+		private _oldState = _state;
+
+		// If the location is spawned and there are twice as many friendly as enemy units then it is liberated, otherwise it is suppressed
+		private _friendlyCount = 0;
+		{ _friendlyCount = _friendlyCount + CALLM0(_x, "countConsciousInfantryUnits") } forEach CALLM1(_city, "getGarrisonsRecursive", FRIENDLY_SIDE);
+
+		private _enemyCount = 0;
+		{ _enemyCount = _enemyCount + CALLM0(_x, "countConsciousInfantryUnits") } forEach CALLM1(_city, "getGarrisonsRecursive", ENEMY_SIDE);
+
+		if(_friendlyCount > 0 && _friendlyCount >= _enemyCount * 2) then { 
+			_state = CITY_STATE_LIBERATED;
+		} else {
+			if(_state == CITY_STATE_LIBERATED && _enemyCount > 4) then {
+				_state = CITY_STATE_SUPPRESSED;
+			};
+		};
 
 		// If City is stable or agitated then instability is a factor
 		if(_state in [CITY_STATE_STABLE, CITY_STATE_AGITATED]) then {
 			private _enemyCmdr = CALL_STATIC_METHOD("AICommander", "getAICommander", [ENEMY_SIDE]);
 			private _activity = CALLM(_enemyCmdr, "getActivity", [_cityPos ARG _cityRadius]);
+
 			// For now we will just have instability directly related to activity and inversely related to city radius (activity fades over time just
 			// as we want instability to)
 			// TODO: add other interesting factors here to the instability rate.
 			// This equation makes required instability relative to area, and means you need ~100 activity at radius 300m and ~600 at radius 750m
-			_instability = 1 min (_activity * 2700 / (_cityRadius * _cityRadius));
-			diag_log [GETV(_city, "name"), _instability, _activity, _cityRadius];
+			_instability = 1 min (_activity * 900 / (_cityRadius * _cityRadius));
+			// diag_log [GETV(_city, "name"), _instability, _activity, _cityRadius];
+
 			// TODO: scale the instability limits using settings
 			switch true do {
 				case (_instability >= 1): { _state = CITY_STATE_IN_REVOLT; };
-				case (_instability > 0.1): { _state = CITY_STATE_AGITATED; };
+				case (_instability > 0.2): { _state = CITY_STATE_AGITATED; };
 				default { _state = CITY_STATE_STABLE; };
 			};
 		} else {
-			// If there is an enemy garrison occupying the city then it is suppressed
-			if(count CALLM(_city, "getGarrisons", [ENEMY_SIDE]) > 0) then {
-				_state = CITY_STATE_SUPPRESSED;
-				_instability = 0;
-			} else {
-				// If the location is spawned and there are twice as many friendly as enemy units then it is liberated
-				if(CALLM(_city, "isSpawned", [])) then {
-					private _enemyCount = count (CALL_METHOD(gLUAP, "getUnitArray", [FRIENDLY_SIDE]) select {_x distance _cityPos < _cityRadius * 1.5});
-					private _friendlyCount = count (CALL_METHOD(gLUAP, "getUnitArray", [ENEMY_SIDE]) select {_x distance _cityPos < _cityRadius * 1.5});
-					if(_friendlyCount > _enemyCount * 2) then {
-						_state = CITY_STATE_LIBERATED;
-					};
-				};
-				_instability = 1;
+			// Instability is only 0 or 1 for liberated/suppressed cities
+			_instability = if(_state in [CITY_STATE_LIBERATED, CITY_STATE_IN_REVOLT]) then { 1 } else { 0 };
+
+			// Make sure amount of activity is appropriate for a city that is liberated
+			if(_state == CITY_STATE_LIBERATED) then {
+				private _enemyCmdr = CALL_STATIC_METHOD("AICommander", "getAICommander", [ENEMY_SIDE]);
+				private _activity = CALLM(_enemyCmdr, "getActivity", [_cityPos ARG _cityRadius]);
+
+				// Activity trends upwards in liberated revolting cities until it hits an equilibrium with fade out
+				// This will ensure the enemy commander doesn't forget about them even if player isn't active in them
+				// https://www.desmos.com/calculator/kiphke1gsj
+				private _dActivity = _dt * 10 / (30 * (_activity + 10));
+				CALL_STATIC_METHOD("AICommander", "addActivity", [ENEMY_SIDE ARG _cityPos ARG _dActivity]);
 			};
 		};
 
 		T_SETV_PUBLIC("instability", _instability);
 		T_SETV_PUBLIC("state", _state);
+
+		// Send player notifications for changes
+		if(_oldState != _state) then {
+			// Notify players of what happened
+			// private _stateDesc = gCityStateData#_state#0;
+			private _stateMsg = CALLM0(_city, "getDisplayName");
+			private _args = ["LOCATION STATE CHANGED", _stateMsg, ""];
+			REMOTE_EXEC_CALL_STATIC_METHOD("NotificationFactory", "createLocationNotification", _args, ON_ALL, NO_JIP);
+		};
 
 		// Add passive recruits
 		private _ratePerHour = T_CALLM1("getRecruitmentRate", _city);
@@ -617,6 +690,7 @@ CLASS("CivilWarCityData", "CivilWarLocationData")
 		private _status = ["STATUS", _stateData#0, _stateData#1];
 		private _mapUIInfo = [
 			["RECRUITS", str floor T_GETV("nRecruits")],
+			["  MAX", str floor T_CALLM1("getMaxRecruits", _city)],
 			["  PER HOUR", _ratePerHour toFixed 1],
 			["INSTABILITY", format["%1%2", (_instability * 100) toFixed 0, "%"]],
 			_status
@@ -631,6 +705,8 @@ CLASS("CivilWarCityData", "CivilWarLocationData")
 		_mrk setMarkerText (format ["%1 (%2)", gCityStateData#_state#0, T_GETV("instability")]);
 		_mrk setMarkerAlpha 1;
 #endif
+		FIX_LINE_NUMBERS()
+
 		// Update police stations (spawning reinforcements etc)
 		private _policeStations = GETV(_city, "children") select { GETV(_x, "type") == LOCATION_TYPE_POLICE_STATION };
 		{
@@ -645,6 +721,11 @@ CLASS("CivilWarCityData", "CivilWarLocationData")
 			CALLM(_x, "update", [_city]);
 		} forEach _ambientMissions;
 	} ENDMETHOD;
+	
+	METHOD("getMaxRecruits") {
+		params [P_THISOBJECT, P_OOP_OBJECT("_city")];
+		CALLM0(_city, "getCapacityCiv"); // It gives a quite good estimate for now
+	} ENDMETHOD;
 
 	// Get the recruitment rate per hour
 	METHOD("getRecruitmentRate") {
@@ -655,7 +736,8 @@ CLASS("CivilWarCityData", "CivilWarLocationData")
 			T_PRVAR(instability);
 
 			private _garrisonedMult = if(count CALLM(_city, "getGarrisons", [FRIENDLY_SIDE]) > 0) then { 1.5 } else { 1 };
-			private _nRecruitsMax = CALLM0(_city, "getCapacityCiv"); // It gives a quite good estimate for now
+
+			private _nRecruitsMax = T_CALLM1("getMaxRecruits", _city);
 			// Recruits is filled up in 2 hours when city is at liberated
 			_rate = 0 max (_instability * _nRecruitsMax * _garrisonedMult / 2);
 		};
@@ -828,7 +910,7 @@ CLASS("CivilWarPoliceStationData", "CivilWarLocationData")
 					CALLM(_newGarrison, "activateOutOfThread", []);
 					private _AI = CALLM(_newGarrison, "getAI", []);
 					// Send the garrison to join the police station location
-					private _args = ["GoalGarrisonJoinLocation", 0, [[TAG_LOCATION, _policeStation], [TAG_MOVE_RADIUS, 30]], _thisObject];
+					private _args = ["GoalGarrisonJoinLocation", 0, [[TAG_LOCATION, _policeStation], [TAG_MOVE_RADIUS, 100]], _thisObject];
 					CALLM2(_AI, "postMethodAsync", "addExternalGoal", _args);
 				};
 			};

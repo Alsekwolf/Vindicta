@@ -20,11 +20,9 @@ Builds this location depending on its type
 
 #define pr private
 
-params ["_thisObject"];
+params [P_THISOBJECT];
 
-if (T_GETV("isBuilt")) exitWith {
-	//OOP_ERROR_0("Trying to build a location that is already built!");
-};
+if (T_GETV("isBuilt")) exitWith {};
 
 if (T_GETV("type") == LOCATION_TYPE_ROADBLOCK) exitWith {
 	pr _pos = T_GETV("pos");

@@ -10,21 +10,16 @@ CLASS("ActionGroupPatrol", "ActionGroup")
 	
 	// logic to run when the goal is activated
 	METHOD("activate") {
-		params [["_thisObject", "", [""]]];
+		params [P_THISOBJECT, P_BOOL("_instant")];
 		
-		pr _hG = GETV(_thisObject, "hG");
-		
-		// Regroup
-		(units _hG) commandFollow (leader _hG);
-		
-		// Set behaviour
-		_hG setBehaviour "SAFE";
-		
-		// Set combat mode
-		_hG setCombatMode "RED"; // Open fire, engage at will
-		
+		pr _hG = T_GETV("hG");
+
+		T_CALLM3("applyGroupBehaviour", "COLUMN", "SAFE", "RED");
+		T_CALLM0("clearWaypoints");
+		T_CALLM0("regroup");
+
 		// Assign patrol waypoints
-		pr _AI = GETV(_thisObject, "AI");
+		pr _AI = T_GETV("AI");
 		pr _group = GETV(_AI, "agent");
 		pr _type = CALLM0(_group, "getType");
 		OOP_INFO_1("Started for AI: %1", _AI);
@@ -74,9 +69,7 @@ CLASS("ActionGroupPatrol", "ActionGroup")
 				};
 			};
 		};
-		
-		// Remove assigned waypoints first
-		while {(count (waypoints _hG)) > 0} do { deleteWaypoint ((waypoints _hG) select 0); };
+
 		// Give waipoints to the group
 		pr _direction = selectRandom [false, true];
 		pr _count = count _waypoints;
@@ -87,7 +80,8 @@ CLASS("ActionGroupPatrol", "ActionGroup")
 		private _closestWPID = 0;
 		private _minDist = 666666;
 		while {_i < _count} do {
-			pr _wp = _hG addWaypoint [_waypoints select _index, 0];
+			private _wayPointPos = ZERO_HEIGHT(_waypoints select _index);
+			pr _wp = _hG addWaypoint [_wayPointPos, 0];
 			_wp setWaypointType "MOVE";
 			_wp setWaypointBehaviour "SAFE"; //"AWARE"; //"SAFE";
 			//_wp setWaypointForceBehaviour true; //"AWARE"; //"SAFE";
@@ -96,7 +90,7 @@ CLASS("ActionGroupPatrol", "ActionGroup")
 			_wpIDs pushback (_wp select 1);
 			
 			// Also find the closest waypoint
-			private _dist = (leader _hG) distance (_waypoints select _index);
+			private _dist = leader _hG distance2D _wayPointPos;
 			if(_dist < _minDist) then {
 				_closestWPID = (_wp select 1);
 				_minDist = _dist;
@@ -114,25 +108,34 @@ CLASS("ActionGroupPatrol", "ActionGroup")
 		
 		// Add cycle waypoint
 		if (count _waypoints > 1) then {
-			pr _wp = _hG addWaypoint [_waypoints select _indexStart, 0]; //Cycle the waypoints
+			pr _wp = _hG addWaypoint [ZERO_HEIGHT(_waypoints select _indexStart), 0]; //Cycle the waypoints
 			_wp setWaypointType "CYCLE";
 			_wp setWaypointBehaviour "SAFE";
 			_wp setWaypointSpeed "LIMITED";
 			_wp setWaypointFormation "WEDGE";
 		};
-		
-		//Set the closest WP as current
-		_hG setCurrentWaypoint [_hG, _closestWPID];
-		
+
+		pr _activeWP = if(_instant) then {
+			// Teleport to a random patrol waypoint
+			pr _rndWP = selectRandom waypoints _hG;
+			T_CALLM1("teleport", getWPPos _rndWP);
+			_rndWP
+		} else {
+			[_hG, _closestWPID]
+		};
+
+		// Set the closest WP as current
+		_hG setCurrentWaypoint _activeWP;
+
 		// Give a goal to units
 		pr _units = CALLM0(_group, "getInfantryUnits");
 		{
 			pr _unitAI = CALLM0(_x, "getAI");
-			CALLM4(_unitAI, "addExternalGoal", "GoalUnitInfantryRegroup", 0, [], _AI);
+			CALLM4(_unitAI, "addExternalGoal", "GoalUnitInfantryRegroup", 0, [[TAG_INSTANT ARG _instant]], _AI);
 		} forEach _units;
 
 		// Set state
-		SETV(_thisObject, "state", ACTION_STATE_ACTIVE);
+		T_SETV("state", ACTION_STATE_ACTIVE);
 		
 		// Return ACTIVE state
 		ACTION_STATE_ACTIVE
@@ -141,11 +144,11 @@ CLASS("ActionGroupPatrol", "ActionGroup")
 	
 	// Logic to run each update-step
 	METHOD("process") {
-		params [["_thisObject", "", [""]]];
+		params [P_THISOBJECT];
 		
-		CALLM0(_thisObject, "failIfEmpty");
+		T_CALLM0("failIfEmpty");
 		
-		CALLM0(_thisObject, "activateIfInactive");
+		T_CALLM0("activateIfInactive");
 		
 		// Return the current state
 		ACTION_STATE_ACTIVE
@@ -153,12 +156,12 @@ CLASS("ActionGroupPatrol", "ActionGroup")
 	
 	// logic to run when the action is satisfied
 	METHOD("terminate") {
-		params [["_thisObject", "", [""]]];
+		params [P_THISOBJECT];
 		
-		pr _hG = GETV(_thisObject, "hG");
+		pr _hG = T_GETV("hG");
 		
 		// Delete all waypoints
-		while {(count (waypoints _hG)) > 0} do { deleteWaypoint ((waypoints _hG) select 0); };
+		T_CALLM0("clearWaypoints");
 
 				
 		// Delete given goals

@@ -12,34 +12,29 @@ Parent: <CmdrAction>
 
 CLASS("PatrolCmdrAction", "CmdrAction")
 	// Garrison ID the attack originates from
-	VARIABLE("srcGarrId");
+	VARIABLE_ATTR("srcGarrId", [ATTR_SAVE]);
 	// Route array composed of targets (see CmdrAITarget.sqf)
-	VARIABLE("routeTargets");
+	VARIABLE_ATTR("routeTargets", [ATTR_SAVE]);
 	// Efficency of the detachment, an AST_VAR wrapper
-	VARIABLE("detachmentEffVar");
+	VARIABLE_ATTR("detachmentEffVar", [ATTR_SAVE]);
 	// Composition of detachment, an AST_VAR wrapper
-	VARIABLE("detachmentCompVar");
+	VARIABLE_ATTR("detachmentCompVar", [ATTR_SAVE]);
 	// Garrison ID of the detachment performing the patrol, an AST_VAR wrapper
-	VARIABLE("detachedGarrIdVar");
+	VARIABLE_ATTR("detachedGarrIdVar", [ATTR_SAVE]);
 	// Start date for the patrol action, an AST_VAR wrapper
-	VARIABLE("startDateVar");
+	VARIABLE_ATTR("startDateVar", [ATTR_SAVE]);
 
 	// Next patrol waypoint target
-	VARIABLE("targetVar");
+	VARIABLE_ATTR("targetVar", [ATTR_SAVE]);
 	// Patrol waypoint targets array wrapped in AST_VAR
-	VARIABLE("routeTargetsVar");
-
-#ifdef DEBUG_CMDRAI
-	VARIABLE("debugColor");
-	VARIABLE("debugSymbol");
-#endif
+	VARIABLE_ATTR("routeTargetsVar", [ATTR_SAVE]);
 
 	/*
 	Constructor: new
 
 	Create a CmdrAI action to send a detachment from a garrison to patrol a specified 
 	route.
-	
+
 	Parameters:
 		_srcGarrId - Number, <Model.GarrisonModel> id from which to send the patrol detachment.
 		_routeTargets - Array of <CmdrAITarget>, an array of patrol waypoints as targets.
@@ -49,11 +44,6 @@ CLASS("PatrolCmdrAction", "CmdrAction")
 
 		T_SETV("srcGarrId", _srcGarrId);
 		T_SETV("routeTargets", +_routeTargets);
-
-#ifdef DEBUG_CMDRAI
-		T_SETV("debugColor", "ColorYellow");
-		T_SETV("debugSymbol", "mil_pickup");
-#endif
 
 		// Start date for this action, default to immediate
 		private _startDateVar = T_CALLM1("createVariable", DATE_NOW);
@@ -90,6 +80,11 @@ CLASS("PatrolCmdrAction", "CmdrAction")
 #endif
 	} ENDMETHOD;
 
+	METHOD("getRouteTargets") {
+		params [P_THISOBJECT];
+		T_GET_AST_VAR("routeTargetsVar")
+	} ENDMETHOD;
+	
 	/* protected override */ METHOD("createTransitions") {
 		params [P_THISOBJECT];
 
@@ -244,6 +239,7 @@ CLASS("PatrolCmdrAction", "CmdrAction")
 		{
 			// Create new intel object and fill in the constant values
 			_intel = NEW("IntelCommanderActionPatrol", []);
+
 			T_PRVAR(routeTargets);
 			private _routeTargetPositions = _routeTargets apply { [_world, _x] call Target_fnc_GetPos };
 			private _locations = _routeTargets select { 
@@ -304,11 +300,6 @@ CLASS("PatrolCmdrAction", "CmdrAction")
 					CALLM2(_detachedGarr, "addKnownFriendlyLocationsActual", _x, 2000);
 				};
 			} forEach GETV(_intelClone, "waypoints");
-
-			// Reveal it to player side
-			if (random 100 < 70) then {
-				CALLSM1("AICommander", "revealIntelToPlayerSide", _intel);
-			};
 		} else {
 			CALLM(_intelClone, "updateInDb", []);
 
@@ -337,8 +328,7 @@ CLASS("PatrolCmdrAction", "CmdrAction")
 		private _srcGarrPos = GETV(_srcGarr, "pos");
 		private _routeTargetPositions = T_GETV("routeTargets") apply { [_world, _x] call Target_fnc_GetPos };
 
-		T_PRVAR(debugColor);
-		T_PRVAR(debugSymbol);
+		GET_DEBUG_MARKER_STYLE(_thisObject) params ["_debugColor", "_debugSymbol"];
 		
 		private _lastPos = _srcGarrPos;
 		{
@@ -389,15 +379,17 @@ CLASS("PatrolCmdrAction", "CmdrAction")
 		// so we can decide if transport is required or not. We could use the total route length or 
 		// some other metric instead here if we wanted.
 		private _maxDistance = 0;
+		private _maxActivityMultiplier = 0;
 		private _lastPos = _srcGarrPos;
 		{
 			_maxDistance = _maxDistance max (_lastPos distance _x);
 			_lastPos = _x;
+			_maxActivityMultiplier = _maxActivityMultiplier max CALLM1(_worldNow, "calcActivityMultiplier", _x);
 		} forEach ( _routeTargetPositions + [_srcGarrPos]);
 
 		// Will we need transport?
 		pr _needTransport = false;
-		if (_maxDistance > 2000) then {
+		if (_maxDistance > 1000) then {
 			_needTransport = true;
 		};
 
@@ -407,9 +399,9 @@ CLASS("PatrolCmdrAction", "CmdrAction")
 			_needTransport = true;
 			_enemyEff = EFF_MOUNTED_PATROL_EFF;
 		};
-		// Scale efficiency by activity in area
-		private _scaleFactor = CALLM1(_worldNow, "calcActivityMultiplier", _srcGarrPos);
-		_enemyEff = EFF_MUL_SCALAR(_enemyEff, _scaleFactor);
+
+		// Scale efficiency by max activity in route
+		_enemyEff = EFF_MUL_SCALAR(_enemyEff, _maxActivityMultiplier);
 
 		// Bail if the garrison clearly can not destroy the (potential) enemy
 		if ( count ([_srcGarrEff, _enemyEff] call eff_fnc_validateAttack) > 0) exitWith {
@@ -424,7 +416,7 @@ CLASS("PatrolCmdrAction", "CmdrAction")
 
 		// Try to allocate units
 		pr _payloadWhitelistMask = if (_needTransport) then {T_comp_ground_or_infantry_mask} else {T_comp_infantry_mask};
-		pr _payloadBlacklistMask = T_comp_static_mask;					// Don't take static weapons under any conditions
+		pr _payloadBlacklistMask = T_comp_static_or_cargo_mask;					// Don't take static weapons under any conditions
 		pr _transportWhitelistMask = T_comp_ground_or_infantry_mask;	// Take ground units, take any infantry to satisfy crew requirements
 		pr _transportBlacklistMask = [];
 		pr _args = [_enemyEff, _allocationFlags, _srcGarrComp, _srcGarrEff,
@@ -569,6 +561,8 @@ CLASS("PatrolCmdrAction", "CmdrAction")
 
 ENDCLASS;
 
+REGISTER_DEBUG_MARKER_STYLE("PatrolCmdrAction", "ColorYellow", "mil_pickup");
+
 #ifdef _SQF_VM
 
 #define SRC_POS [1000, 0, 0]
@@ -604,15 +598,15 @@ ENDCLASS;
 	pr _thisObject = NEW("PatrolCmdrAction", [GETV(_garrison, "id") ARG _targets]);
 
 	private _future = CALLM(_world, "simCopy", [WORLD_TYPE_SIM_FUTURE]);
-	CALLM(_thisObject, "updateScore", [_world ARG _future]);
+	T_CALLM("updateScore", [_world ARG _future]);
 
-	private _finalScore = CALLM(_thisObject, "getFinalScore", []);
+	private _finalScore = T_CALLM("getFinalScore", []);
 	diag_log format ["Patrol final score: %1", _finalScore];
 	["Score is above zero", _finalScore > 0] call test_Assert;
 
 	// Apply to sim
-	private _nowSimState = CALLM(_thisObject, "applyToSim", [_world]);
-	private _futureSimState = CALLM(_thisObject, "applyToSim", [_future]);
+	private _nowSimState = T_CALLM("applyToSim", [_world]);
+	private _futureSimState = T_CALLM("applyToSim", [_future]);
 
 }] call test_addTest;
 
