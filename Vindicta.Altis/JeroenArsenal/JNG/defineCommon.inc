@@ -1,20 +1,14 @@
-#include "..\defineCommon.inc"
-
-#define STATTYPE_DAMAGE 0
-#define STATTYPE_FUEL 1
-#define STATTYPE_FUELCARGO 2
-#define STATTYPE_AMMOCARGO 3
-#define STATTYPE_REPAIRCARGO 4
-#define STATTYPES [STATTYPE_FUEL,STATTYPE_FUELCARGO,STATTYPE_AMMO,STATTYPE_REPAIR]
+#include "\A3\ui_f\hpp\defineDIKCodes.inc"
+#include "\A3\Ui_f\hpp\defineResinclDesign.inc"
 
 #define FADE_DELAY	0.15
 
-#define IDC_JNG_TAB_CAR TYPE_CAR
-#define IDC_JNG_TAB_ARMOR TYPE_ARMOR
-#define IDC_JNG_TAB_HELI TYPE_HELI
-#define IDC_JNG_TAB_PLANE TYPE_PLANE
-#define IDC_JNG_TAB_NAVAL TYPE_NAVAL
-#define IDC_JNG_TAB_STATIC TYPE_STATIC
+#define IDC_JNG_TAB_CAR IDC_RSCDISPLAYARSENAL_TAB_PRIMARYWEAPON
+#define IDC_JNG_TAB_ARMOR IDC_RSCDISPLAYARSENAL_TAB_SECONDARYWEAPON
+#define IDC_JNG_TAB_HELI IDC_RSCDISPLAYARSENAL_TAB_HANDGUN
+#define IDC_JNG_TAB_PLANE IDC_RSCDISPLAYARSENAL_TAB_UNIFORM
+#define IDC_JNG_TAB_NAVAL IDC_RSCDISPLAYARSENAL_TAB_VEST
+#define IDC_JNG_TAB_STATIC IDC_RSCDISPLAYARSENAL_TAB_BACKPACK
 
 #define IDC_JNG_TAB_REARM IDC_RSCDISPLAYARSENAL_TAB_CARGOMAG
 #define IDC_JNG_TAB_REPAIR IDC_RSCDISPLAYARSENAL_TAB_CARGOMAGALL
@@ -47,56 +41,42 @@
 #define IDCS	[IDCS_LEFT,IDCS_RIGHT]
 
 #define DECOMPILE_DATA\
-	pr _data = if(_dataStr =="")then{[]}else{parseSimpleArray _dataStr};
-	
+	private _data = call compile _dataStr;
 #define SPLIT_SAVE\
-	_data params [\
-		"_name",\
-		"_beingChanged",\
-		"_locked",\
-		"_lockedName",\
-		"_type",\
-		"_texture",\
-		"_animations",\
-		"_ammoClassic",\
-		"_ammoPylon",\
-		"_damage",\
-		"_attachItem",\
-		"_fuel",\
-		"_fuelCap",\
-		"_fuelcargo",\
-		"_fuelcargoCap",\
-		"_ammocargo",\
-		"_ammocargoCap",\
-		"_repaircargo",\
-		"_repaircargoCap"\
-	];\
-	
+	private _name = _data select 0;\
+	private _beingChanged = _data select 1;\
+	private _locked = _data select 2;\
+	private _lockedName = _data select 3;\
+	private _type = _data select 4;\
+	private _texture = _data select 5;\
+	private _animations = _data select 6;\
+	private _ammoClassic = _data select 7;\
+	private _ammoPylon = _data select 8;\
+	private _damage = _data select 9;\
+	private _attachItem = _data select 10;
 #define COMPILE_SAVE\
-	if(isnil "_name" || isnil "_beingChanged" || isnil "_locked" || isnil "_lockedName"  || isnil "_type" || isnil "_texture" || isnil "_animations" || isnil "_ammoClassic"|| isnil "_ammoPylon"|| isnil "_ammoClassic" || isnil "_damage" || isnil "_fuel" || isnil "_fuelCap" || isnil "_fuelcargo" || isnil "_fuelcargoCap" || isnil "_ammocargo" || isnil "_ammocargoCap" || isnil "_repaircargo" || isnil "_repaircargoCap")then{\
-		["ERROR COMPILE_SAVE JGA"] call BIS_fnc_error;\
-		diag_log "ERROR COMPILE_SAVE JGA";\
+	if(isnil "_name" || isnil "_beingChanged" || isnil "_locked" || isnil "_lockedName"  || isnil "_type" || isnil "_texture" || isnil "_animations" || isnil "_ammoClassic"|| isnil "_ammoPylon"|| isnil "_ammoClassic" || isnil "_damage")then{\
+		["Error: ERROR COMPILE_SAVE"] call BIS_fnc_error;\
+		_error_compile_save = "ERROR COMPILE_SAVE fn_garage.sqf (JGA)";\
 	};\
-	pr _data = [_name, _beingChanged, _locked, _lockedName, _type, _texture, _animations, _ammoClassic, _ammoPylon, _damage, _attachItem, _fuel, _fuelCap,_fuelcargo,_fuelcargoCap,_ammocargo,_ammocargoCap,_repaircargo,_repaircargoCap];\
-	pr _datastr = str _data;
-	
+	private _data = [_name, _beingChanged, _locked, _lockedName, _type, _texture, _animations, _ammoClassic, _ammoPylon, _damage, _attachItem];\
+	private _datastr = str _data;
 #define SPLIT_REARM\
-	pr _magazine = _data select 0;\
-	pr _currentAmount = _data select 1;\
-	pr _maxAmount = _data select 2;\
-	pr _displayName = _data select 3;
-	
+	private _magazine = _data select 0;\
+	private _currentAmount = _data select 1;\
+	private _maxAmount = _data select 2;\
+	private _displayName = _data select 3;
 #define COMPILE_REARM\
-	pr _data = [_magazine, _currentAmount, _maxAmount, _displayName];\
-	pr _datastr = str _data;
+	private _data = [_magazine, _currentAmount, _maxAmount, _displayName];\
+	private _datastr = str _data;
 
 
 #define AMOUTTOTEXT\
 {\
-	pr _amount = _this;\
+	private _amount = _this;\
 	if(_amount == -1)exitWith{"   ∞    ";};\
-	pr _suffix = "";\
-	pr _prefix = "";\
+	private _suffix = "";\
+	private _prefix = "";\
 	if(_amount > 9999)then{\
 		_amount = round(_amount/1000);_suffix="k";\
 		_prefix = switch true do{\
@@ -115,6 +95,3 @@
 	};\
 	(_prefix + (str _amount) + _suffix);\
 };
-
-
-#define MAX_DISTANCE_TO_STORE 40

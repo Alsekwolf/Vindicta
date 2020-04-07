@@ -502,6 +502,9 @@ CLASS(UNIT_CLASS_NAME, "Storable")
 
 						// Initialize limited arsenal
 						T_CALLM0("limitedArsenalOnSpawn");
+            
+            //Adds logistics action
+            _objectHandle call jn_fnc_logistics_addAction;
 						
 						// I'll tell you what else: make it draggable so we can get it out of buildings!
 						[_objectHandle, true, [0, 2, 0.1], 0] remoteExec ["ace_dragging_fnc_setDraggable", 0, false];

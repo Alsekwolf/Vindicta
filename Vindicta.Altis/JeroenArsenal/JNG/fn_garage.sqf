@@ -1981,5 +1981,3 @@ switch _mode do {
 		["Error: wrong input given '%1' for mode '%2'",_this,_mode] call BIS_fnc_error;
 	};
 };
-
-

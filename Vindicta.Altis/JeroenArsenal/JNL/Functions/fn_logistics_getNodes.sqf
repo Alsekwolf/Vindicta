@@ -1,5 +1,3 @@
-#include "defineCommon.inc"
-
 /*
 	Author: Jeroen Notenbomer
 
@@ -16,13 +14,13 @@
 
 params ["_vehicle",["_type",-1]];
 
-pr _nodes = _vehicle getVariable ["jnl_nodes",nil];
+private _nodes = _vehicle getVariable ["jnl_nodes",nil];
 
 if(isNil "_nodes")then{
 	_nodes = [];
-	pr _model = gettext (configfile >> "CfgVehicles" >> (typeOf _vehicle)  >> "model");
+	private _model = gettext (configfile >> "CfgVehicles" >> (typeOf _vehicle)  >> "model");
 	{
-		pr _model2 = _x select 0;
+		private _model2 = _x select 0;
 		if(_model isEqualTo _model2)exitWith{
 			_nodes = _x select 1;
 		};

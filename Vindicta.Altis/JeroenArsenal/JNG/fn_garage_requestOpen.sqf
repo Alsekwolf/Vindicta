@@ -1,4 +1,3 @@
-#include "defineCommon.inc"
 /*
 	Author: Jeroen Notenbomer
 
@@ -14,13 +13,12 @@
 */
 
 if(!isServer)exitWith{};
-params ["_clientOwner","_object"];
+params ["_clientOwner"];
 
- pr _temp = _object getVariable ["jng_inUseBy",[]];
+_temp = server getVariable ["jng_playersInGarage",[]];
 _temp pushBackUnique _clientOwner;
-_object setVariable ["jng_playersInGarage",_temp,true];
+server setVariable ["jng_playersInGarage",_temp,true];
 
-diag_log ["open Garage for: clientOwner ",_clientOwner];
+call compile preProcessFileLineNumbers "JeroenArsenal\JNG\recompile.sqf";
 
-//call compile preProcessFileLineNumbers "JeroenArsenal\JNG\recompile.sqf";
-["Open",[_object]] remoteExecCall ["jn_fnc_garage", _clientOwner];
+["Open",[jng_vehicleList,jng_ammoList]] remoteExecCall ["jn_fnc_garage", _clientOwner];
