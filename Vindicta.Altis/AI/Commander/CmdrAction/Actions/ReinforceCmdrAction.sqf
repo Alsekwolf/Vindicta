@@ -13,7 +13,7 @@ Parent: <TakeOrJoinCmdrAction>
 #define pr private
 
 CLASS("ReinforceCmdrAction", "TakeOrJoinCmdrAction")
-	VARIABLE("tgtGarrId");
+	VARIABLE_ATTR("tgtGarrId", [ATTR_SAVE]);
 
 	/*
 	Constructor: new
@@ -31,11 +31,6 @@ CLASS("ReinforceCmdrAction", "TakeOrJoinCmdrAction")
 
 		// Target can be modified during the action, if the initial target dies, so we want it to save/restore.
 		T_SET_AST_VAR("targetVar", [TARGET_TYPE_GARRISON ARG _tgtGarrId]);
-		// T_SET_AST_VAR("splitFlagsVar", [ASSIGN_TRANSPORT ARG FAIL_UNDER_EFF ARG OCCUPYING_FORCE_HINT]);
-#ifdef DEBUG_CMDRAI
-		T_SETV("debugColor", "ColorWhite");
-		T_SETV("debugSymbol", "mil_join")
-#endif
 	} ENDMETHOD;
 
 	/* protected override */ METHOD("updateIntel") {
@@ -83,11 +78,6 @@ CLASS("ReinforceCmdrAction", "TakeOrJoinCmdrAction")
 			// Send the intel to some places that should "know" about it
 			T_CALLM("addIntelAt", [_world ARG GETV(_srcGarr, "pos")]);
 			T_CALLM("addIntelAt", [_world ARG GETV(_tgtGarr, "pos")]);
-
-			// Reveal it to player side
-			if (random 100 < 80) then {
-				CALLSM1("AICommander", "revealIntelToPlayerSide", _intel);
-			};
 
 			// Reveal some friendly locations near the destination to the garrison performing the task
 			private _detachedGarrId = T_GET_AST_VAR("detachedGarrIdVar");
@@ -148,7 +138,8 @@ CLASS("ReinforceCmdrAction", "TakeOrJoinCmdrAction")
 			T_CALLM("setScore", [ZERO_SCORE]);
 		};
 
-		pr _allocationFlags = [	SPLIT_VALIDATE_CREW,		// Ensure we can drive our vehicles
+		pr _allocationFlags = [	SPLIT_VALIDATE_ATTACK,
+								SPLIT_VALIDATE_CREW,		// Ensure we can drive our vehicles
 								SPLIT_VALIDATE_CREW_EXT];	// Ensure we provide enough crew to destination
 
 		private _needTransport = false;
@@ -194,7 +185,9 @@ CLASS("ReinforceCmdrAction", "TakeOrJoinCmdrAction")
 		pr _requiredComp = [];
 		if(_sendAnOfficer) then {
 			// Lets send an officer as well!
-			_requiredComp = [[T_INF, T_INF_officer, 1]];
+			_requiredComp = [
+				[T_INF, T_INF_officer, 1]
+			];
 			// Any make sure we have some escort.
 			_tgtUnderEff = EFF_MAX(_tgtUnderEff, EFF_MIN_EFF);
 		};
@@ -320,6 +313,8 @@ CLASS("ReinforceCmdrAction", "TakeOrJoinCmdrAction")
 
 ENDCLASS;
 
+REGISTER_DEBUG_MARKER_STYLE("ReinforceCmdrAction", "ColorWhite", "mil_join");
+
 #ifdef _SQF_VM
 
 #define SRC_POS [1, 2, 0]
@@ -350,13 +345,13 @@ ENDCLASS;
 	private _thisObject = NEW("ReinforceCmdrAction", [GETV(_garrison, "id") ARG GETV(_targetGarrison, "id")]);
 	
 	private _future = CALLM(_world, "simCopy", [WORLD_TYPE_SIM_FUTURE]);
-	CALLM(_thisObject, "updateScore", [_world ARG _future]);
-	private _finalScore = CALLM(_thisObject, "getFinalScore", []);
+	T_CALLM("updateScore", [_world ARG _future]);
+	private _finalScore = T_CALLM("getFinalScore", []);
 
-	diag_log format ["Reinforce final score: %1", _finalScore];
+	//diag_log format ["Reinforce final score: %1", _finalScore];
 	["Score is above zero", _finalScore > 0] call test_Assert;
 
-	CALLM(_thisObject, "applyToSim", [_world]);
+	T_CALLM("applyToSim", [_world]);
 	true
 	// ["Object exists", !(isNil "_class")] call test_Assert;
 	// ["Initial state is correct", GETV(_obj, "state") == CMDR_ACTION_STATE_START] call test_Assert;

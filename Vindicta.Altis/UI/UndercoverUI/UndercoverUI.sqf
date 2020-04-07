@@ -18,6 +18,7 @@ Author: Marvis
 #ifndef _SQF_VM // Not needed for tests, and SQF-VM doesn't support localize anyway
 // string for each hint key
 g_UM_Hints = [
+	HK_COMPROMISED_VIC, localize "STR_UM_HINT_COMPROMISEDVIC",
 	HK_INCAPACITATED, localize "STR_UM_HINT_DOWNED",
 	HK_ARRESTED, localize "STR_UM_HINT_ARRESTED",
 	HK_ILLEGAL, localize "STR_UM_HINT_ILLEGAL",
@@ -41,7 +42,7 @@ g_UM_Hints = [
 CLASS(CLASS_NAME, "")
 	
 	STATIC_METHOD("drawUI") {
-		params [["_thisObject", "", [""]], ["_unit", 0], ["_suspicion", 0], ["_hintKeys", 0]];
+		params [P_THISOBJECT, ["_unit", 0], ["_suspicion", 0], ["_hintKeys", 0]];
 
 			pr _textUI = "";
 			pr _bSuspicious = UNDERCOVER_IS_UNIT_SUSPICIOUS(_unit);
@@ -61,7 +62,7 @@ CLASS(CLASS_NAME, "")
 
 			// clamp color, for visual reasons
 			pr _colorMult = linearConversion [0, 1, _suspicion, 0.35, 0.88, true];
-			pr _color = [1.8* _colorMult, 1.8 * (1 - _colorMult), 0, 1];	
+			pr _color = [1.8* _colorMult, 1.8 * (1 - _colorMult), 0, 1];
 			
 			if ( displayNull != (uinamespace getVariable "p0_InGameUI_display") ) then {
 				((uinamespace getVariable "p0_InGameUI_display") displayCtrl IDC_U_SUSPICION_TEXT) ctrlSetText format ["%1", _textUI];
@@ -70,7 +71,7 @@ CLASS(CLASS_NAME, "")
 
 	  			((uinamespace getVariable "p0_InGameUI_display") displayCtrl IDC_U_SUSPICION_TEXT) ctrlCommit 0;
 	  			((uinamespace getVariable "p0_InGameUI_display") displayCtrl IDC_U_SUSPICION_STATUSBAR) ctrlCommit 1;
-	  		}; 
+	  		};
 		
 	} ENDMETHOD;
 

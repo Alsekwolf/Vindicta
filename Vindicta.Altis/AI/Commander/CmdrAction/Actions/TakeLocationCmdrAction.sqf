@@ -13,7 +13,7 @@ Parent: <TakeOrJoinCmdrAction>
 #define pr private
 
 CLASS("TakeLocationCmdrAction", "TakeOrJoinCmdrAction")
-	VARIABLE("tgtLocId");
+	VARIABLE_ATTR("tgtLocId", [ATTR_SAVE]);
 
 	/*
 	Constructor: new
@@ -32,11 +32,6 @@ CLASS("TakeLocationCmdrAction", "TakeOrJoinCmdrAction")
 
 		// Target can be modified during the action, if the initial target dies, so we want it to save/restore.
 		T_SET_AST_VAR("targetVar", [TARGET_TYPE_LOCATION ARG _tgtLocId]);
-
-#ifdef DEBUG_CMDRAI
-		T_SETV("debugColor", "ColorBlue");
-		T_SETV("debugSymbol", "mil_flag")
-#endif
 	} ENDMETHOD;
 
 	/* protected override */ METHOD("updateIntel") {
@@ -78,11 +73,6 @@ CLASS("TakeLocationCmdrAction", "TakeOrJoinCmdrAction")
 			// Send the intel to some places that should "know" about it
 			T_CALLM("addIntelAt", [_world ARG GETV(_srcGarr, "pos")]);
 			T_CALLM("addIntelAt", [_world ARG GETV(_tgtLoc, "pos")]);
-
-			// Reveal it to player side
-			if (random 100 < 80) then {
-				CALLSM1("AICommander", "revealIntelToPlayerSide", _intel);
-			};
 		} else {
 			T_CALLM("updateIntelFromDetachment", [_world ARG _intelClone]);
 			CALLM(_intelClone, "updateInDb", []);
@@ -274,6 +264,8 @@ CLASS("TakeLocationCmdrAction", "TakeOrJoinCmdrAction")
 
 ENDCLASS;
 
+REGISTER_DEBUG_MARKER_STYLE("TakeLocationCmdrAction", "ColorBlue", "mil_flag");
+
 #ifdef _SQF_VM
 
 #define SRC_POS [0, 0, 0]
@@ -300,14 +292,14 @@ ENDCLASS;
 	private _thisObject = NEW("TakeLocationCmdrAction", [GETV(_garrison, "id") ARG GETV(_targetLocation, "id")]);
 	
 	private _future = CALLM(_world, "simCopy", [WORLD_TYPE_SIM_FUTURE]);
-	CALLM(_thisObject, "updateScore", [_world ARG _future]);
+	T_CALLM("updateScore", [_world ARG _future]);
 
-	private _finalScore = CALLM(_thisObject, "getFinalScore", []);
+	private _finalScore = T_CALLM("getFinalScore", []);
 	diag_log format ["Take location final score: %1", _finalScore];
 	["Score is above zero", _finalScore > 0] call test_Assert;
 
-	private _nowSimState = CALLM(_thisObject, "applyToSim", [_world]);
-	private _futureSimState = CALLM(_thisObject, "applyToSim", [_future]);
+	private _nowSimState = T_CALLM("applyToSim", [_world]);
+	private _futureSimState = T_CALLM("applyToSim", [_future]);
 	["Now sim state correct", _nowSimState == CMDR_ACTION_STATE_READY_TO_MOVE] call test_Assert;
 	["Future sim state correct", _futureSimState == CMDR_ACTION_STATE_END] call test_Assert;
 	
@@ -345,14 +337,14 @@ ENDCLASS;
 	CALLM1(_storage, "load", _thisObject);
 
 	private _future = CALLM(_world, "simCopy", [WORLD_TYPE_SIM_FUTURE]);
-	CALLM(_thisObject, "updateScore", [_world ARG _future]);
+	T_CALLM("updateScore", [_world ARG _future]);
 
-	private _finalScore = CALLM(_thisObject, "getFinalScore", []);
+	private _finalScore = T_CALLM("getFinalScore", []);
 	diag_log format ["Take location final score: %1", _finalScore];
 	["Score is above zero", _finalScore > 0] call test_Assert;
 
-	private _nowSimState = CALLM(_thisObject, "applyToSim", [_world]);
-	private _futureSimState = CALLM(_thisObject, "applyToSim", [_future]);
+	private _nowSimState = T_CALLM("applyToSim", [_world]);
+	private _futureSimState = T_CALLM("applyToSim", [_future]);
 	["Now sim state correct", _nowSimState == CMDR_ACTION_STATE_READY_TO_MOVE] call test_Assert;
 	["Future sim state correct", _futureSimState == CMDR_ACTION_STATE_END] call test_Assert;
 	

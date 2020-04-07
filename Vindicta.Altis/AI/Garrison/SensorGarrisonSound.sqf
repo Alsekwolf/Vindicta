@@ -32,14 +32,14 @@ CLASS("SensorGarrisonSound", "SensorGarrisonStimulatable")
 	VARIABLE("soundSources");
 
 	METHOD("new") {
-		params [["_thisObject", "", [""]]];
+		params [P_THISOBJECT];
 		T_SETV("stimulation", 0);
 		T_SETV("timePrevUpdate", time);
 		T_SETV("soundSources", []);
 	} ENDMETHOD;
 
 	METHOD("update") {
-		params [["_thisObject", "", [""]]];
+		params [P_THISOBJECT];
 
 		// Bail if not spawned
 		pr _gar = T_GETV("gar");
@@ -79,26 +79,32 @@ CLASS("SensorGarrisonSound", "SensorGarrisonStimulatable")
 			pr _dateNumber = dateToNumber date;
 			pr _targets = _soundSources apply {
 				_x params ["_hO", "_time"];
-				pr _unit = GET_UNIT_FROM_OBJECT_HANDLE(_hO);
 				pr _ret = 0;
 				CRITICAL_SECTION {
-					_ret = if (IS_OOP_OBJECT(_unit)) then {
-						pr _distance = (getPos _hO) distance2D _garPos;
-						pr _inaccuracy = _distance*0.1; // We randomize the position a little, depending on how far the target is
-						pr _hOpos = getPos _hO;
-						pr _pos = [(_hOpos#0) + (random _inaccuracy) - 0.5*_inaccuracy, (_hOpos#1) + (random _inaccuracy) - 0.5*_inaccuracy, 0];
-						pr _eff = GET_UNIT_EFFICIENCY_FROM_OBJECT_HANDLE(_hO);
-						pr _target = TARGET_NEW(_unit, 2.0, _pos, _dateNumber, +_eff);
+					// Check inside the critical section, or we have race condition
+					if !(isNull _hO) then {
+						pr _unit = GET_UNIT_FROM_OBJECT_HANDLE(_hO);
+						_ret = if (IS_OOP_OBJECT(_unit)) then {
+							pr _distance = (getPos _hO) distance2D _garPos;
+							pr _inaccuracy = _distance*0.1; // We randomize the position a little, depending on how far the target is
+							pr _hOpos = getPos _hO;
+							pr _pos = [(_hOpos#0) + (random _inaccuracy) - 0.5*_inaccuracy, (_hOpos#1) + (random _inaccuracy) - 0.5*_inaccuracy, 0];
+							pr _eff = GET_UNIT_EFFICIENCY_FROM_OBJECT_HANDLE(_hO);
+							pr _target = TARGET_NEW(_unit, 2.0, _pos, _dateNumber, +_eff);
 
-						OOP_INFO_1("    %1", _target);
+							OOP_INFO_1("    %1", _target);
 
-						// Return stimulus
-						_target
-					} else {
-						TARGET_NEW(format ["unknown %1", _hO], 2.0, _pos, _dateNumber, +(T_efficiency#T_INF#T_INF_rifleman));
+							// Return stimulus
+							_target
+						} else {
+							TARGET_NEW(format ["unknown %1", _hO], 2.0, _pos, _dateNumber, +(T_efficiency#T_INF#T_INF_rifleman))
+						};
 					};
 				};
 				_ret
+			} select {
+				// Filter out the invalid sources
+				!isNil {_x} && {_x isEqualType []}
 			};
 
 			// Send targets to target sensor
@@ -120,7 +126,7 @@ CLASS("SensorGarrisonSound", "SensorGarrisonStimulatable")
 	// ----------------------------------------------------------------------
 	
 	METHOD("handleStimulus") {
-		params [["_thisObject", "", [""]], ["_stimulus", [], [[]]]];
+		params [P_THISOBJECT, P_ARRAY("_stimulus")];
 		
 		OOP_INFO_1("HANDLE STIMULUS: %1", _stimulus);
 
@@ -164,7 +170,7 @@ CLASS("SensorGarrisonSound", "SensorGarrisonStimulatable")
 	// ----------------------------------------------------------------------
 	
 	METHOD("doComplexCheck") {
-		params [["_thisObject", "", [""]], ["_stimulus", [], [[]]]];
+		params [P_THISOBJECT, P_ARRAY("_stimulus")];
 		
 		// Bail if not spawned
 		// todo later despawned garrisons can also receive this stimulus, so that when they are spawned, they are already alert for instance
@@ -176,11 +182,8 @@ CLASS("SensorGarrisonSound", "SensorGarrisonStimulatable")
 		// Return true only if garrison is NOT in combat state
 		// If in combat it makes no sense for us to hear gunshots any more
 		// If not in combat, and sensor gets overstimulated, garrison will switch to combat mode
-		pr _garAI = T_GETV("AI");
-		pr _ws = GETV(_garAI, "worldState");
-		pr _inCombat = [_ws, WSP_GAR_AWARE_OF_ENEMY] call ws_getPropertyValue;
-		
-		!_inCombat
+		pr _AI = T_GETV("AI");
+		!CALLM0(_AI, "isAlerted")
 	} ENDMETHOD;
 	
 	// ----------------------------------------------------------------------
@@ -190,7 +193,7 @@ CLASS("SensorGarrisonSound", "SensorGarrisonStimulatable")
 	// ----------------------------------------------------------------------
 	
 	/* virtual */ METHOD("getUpdateInterval") {
-		//params [ ["_thisObject", "", [""]]];
+		//params [P_THISOBJECT];
 		UPDATE_INTERVAL
 	} ENDMETHOD;
 

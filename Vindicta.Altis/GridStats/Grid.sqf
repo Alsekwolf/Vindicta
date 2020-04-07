@@ -40,7 +40,7 @@ CLASS("Grid", "Storable");
 	*/
 
 	METHOD("new") {
-		params ["_thisObject", ["_cellSize", 500], ["_defaultValue", 0, GRID_ELEMENT_TYPES]];
+		params [P_THISOBJECT, ["_cellSize", 500], ["_defaultValue", 0, GRID_ELEMENT_TYPES]];
 
 		private _gridSize = ceil(WORLD_SIZE / _cellSize); //Size of the grid measured in squares
 		T_SETV("gridSize", _gridSize);
@@ -74,7 +74,7 @@ CLASS("Grid", "Storable");
 	Returns: Array
 	*/
 	METHOD("getGridArray") {
-		params ["_thisObject"];
+		params [P_THISOBJECT];
 		T_GETV("gridArray")
 	} ENDMETHOD;
 	
@@ -85,7 +85,7 @@ CLASS("Grid", "Storable");
 	Returns: Number
 	*/
 	METHOD("getCellSize") {
-		params ["_thisObject"];
+		params [P_THISOBJECT];
 		T_GETV("cellSize")
 	} ENDMETHOD;
 
@@ -94,7 +94,7 @@ CLASS("Grid", "Storable");
 	Returns grid size - integer number, amount of cells in this grid
 	*/
 	METHOD("getGridSize") {
-		params ["_thisObject"];
+		params [P_THISOBJECT];
 		T_GETV("gridSize");
 	} ENDMETHOD;
 
@@ -111,7 +111,7 @@ CLASS("Grid", "Storable");
 	Returns: nil
 	*/
 	METHOD("setValueAll") {
-		params ["_thisObject", ["_value", 0, GRID_ELEMENT_TYPES]];
+		params [P_THISOBJECT, ["_value", 0, GRID_ELEMENT_TYPES]];
 		
 		pr _gridArray = T_GETV("gridArray");
 		pr _n = count _gridArray;
@@ -135,7 +135,7 @@ CLASS("Grid", "Storable");
 	*/
 	
 	METHOD("setValue") {
-		params ["_thisObject", ["_pos", [], [[]]], ["_value", 0, GRID_ELEMENT_TYPES]];
+		params [P_THISOBJECT, P_ARRAY("_pos"), ["_value", 0, GRID_ELEMENT_TYPES]];
 	
 		_pos params ["_x", "_y"];
 		
@@ -162,7 +162,7 @@ CLASS("Grid", "Storable");
 	*/
 	
 	METHOD("addValue") {
-		params ["_thisObject", ["_pos", [], [[]]], ["_value", 0, [0, []]]];
+		params [P_THISOBJECT, P_ARRAY("_pos"), ["_value", 0, [0, []]]];
 	
 		_pos params ["_x", "_y"];
 		
@@ -310,7 +310,7 @@ CLASS("Grid", "Storable");
 	Returns: Number, value of the element.
 	*/
 	METHOD("getValue") {
-		params ["_thisObject", ["_pos", [], [[]]]];
+		params [P_THISOBJECT, P_ARRAY("_pos")];
 
 		_pos params ["_x", "_y"];
 
@@ -332,7 +332,7 @@ CLASS("Grid", "Storable");
 	If not, default value is returned.
 	*/
 	METHOD("getValueSafe") {
-		params ["_thisObject", ["_pos", [], [[]]]];
+		params [P_THISOBJECT, P_ARRAY("_pos")];
 
 		_pos params ["_x", "_y"];
 
@@ -456,6 +456,32 @@ CLASS("Grid", "Storable");
 		};
 	} ENDMETHOD;
 
+	// Gets sum value at square area centered at _pos as having full width of 2*_halfSize
+	METHOD("getValueSquareSum") {
+		params [P_THISOBJECT, P_POSITION("_pos"), P_NUMBER("_halfSize")];
+		
+		_pos params ["_x", "_y"];
+
+		pr _array = T_GETV("gridArray");
+		pr _cellSize = T_GETV("cellSize");
+
+		pr _xID = floor(_x / _cellSize);
+		pr _yID = floor(_y / _cellSize);
+		pr _nCells = round (_halfSize/_cellSize);	// Nubmer of cells to capture on each side
+		pr _xIDStart = (_xID - _nCells) max 0;
+		pr _yIDStart = (_yID - _nCells) max 0;
+		pr _nCellsSelect = 1 + 2 * _nCells;
+
+		pr _sum = 0;
+		{
+			pr _col = _x;
+			{
+				_sum = _sum + _x;
+			} forEach (_col select [_yIDStart, _nCellsSelect]);
+			//pr _max = selectMax (_col select [_yIDStart, _nCellsSelect]);
+		} forEach (_array select [_xIDStart, _nCellsSelect]);
+		_sum
+	} ENDMETHOD;
 	// - - - - - Image processing - - - -
 
 	METHOD("apply") {
@@ -513,7 +539,7 @@ CLASS("Grid", "Storable");
 	Returns: Nothing
 	*/
 	METHOD("filter") {
-		params ["_thisObject", ["_kernel", [], [[]]]];
+		params [P_THISOBJECT, P_ARRAY("_kernel")];
 
 		pr _kSize = count _kernel;
 		pr _kOffset = floor (_kSize / 2); // Kernel offset
@@ -606,7 +632,7 @@ CLASS("Grid", "Storable");
 	Returns: nil
 	*/
 	METHOD("plot") {
-		params ["_thisObject", 
+		params [P_THISOBJECT, 
 			["_scale", 1, [1]], 
 			["_plotZero", false, [false]], 
 			["_brush", "SolidFull", [""]],
@@ -614,7 +640,7 @@ CLASS("Grid", "Storable");
 			["_alphaRange", [0.02, 0.5], [[]]]
 		];
 
-		CALLM0(_thisObject, "unplot");
+		T_CALLM0("unplot");
 
 		pr _array = T_GETV("gridArray");
 		pr _cellSize = T_GETV("cellSize");
@@ -682,7 +708,7 @@ CLASS("Grid", "Storable");
 	*/
 	
 	METHOD("unplot") {
-		params ["_thisObject"];
+		params [P_THISOBJECT];
 		
 		pr _array = T_GETV("gridArray");
 		pr _n = count _array - 1;
@@ -708,7 +734,7 @@ CLASS("Grid", "Storable");
 	*/
 	
 	METHOD("plotCell") {
-		params ["_thisObject", ["_pos", [], [[]]], ["_scale", 1, [1]], ["_plotZero", false]];
+		params [P_THISOBJECT, P_ARRAY("_pos"), ["_scale", 1, [1]], ["_plotZero", false]];
 		
 		_pos params ["_x", "_y"];
 		
@@ -768,7 +794,7 @@ CLASS("Grid", "Storable");
 	
 	// // - - - - - Manipulating values - - - - - -	
 	// METHOD("edit") {
-	// 	params ["_thisObject", ["_value", 1.0], ["_scale", 1.0]];
+	// 	params [P_THISOBJECT, ["_value", 1.0], ["_scale", 1.0]];
 		
 	// 	// Unplot previous grid
 	// 	pr _grid = GETSV("Grid", "currentGrid");
@@ -783,7 +809,7 @@ CLASS("Grid", "Storable");
 	// 	SETSV("Grid", "currentScale", _scale);
 		
 	// 	// Plot the grid
-	// 	CALLM2(_thisObject, "plot", _scale, true);
+	// 	T_CALLM2("plot", _scale, true);
 		
 	// 	// Remove previous EH if it exists
 	// 	pr _eh = GETSV("Grid", "mapSingleClickEH");
@@ -836,7 +862,7 @@ CLASS("Grid", "Storable");
 	Returns: reference to this grid.
 	*/	
 	METHOD("copyFrom") {
-		params ["_thisObject", ["_grid", "", [""]]];
+		params [P_THISOBJECT, P_OOP_OBJECT("_grid")];
 
 		pr _gridArray = T_GETV("gridArray");
 		pr _gridArray1 = GETV(_grid, "gridArray");

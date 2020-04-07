@@ -17,7 +17,7 @@
 */
 
 
-params [["_unit", objNull, [objNull]]];
+params [P_OBJECT("_unit")];
 
 [ 
 	_unit,
@@ -27,10 +27,14 @@ params [["_unit", objNull, [objNull]]];
 	"_this distance _target < 3",
 	"_caller distance _target < 3",
 	{},
-	{},
-	{ 	
+	{ // code during progress
 		params ["_target", "_caller", "_actionId", "_arguments", "_progress", "_maxProgress"];
-		REMOTE_EXEC_CALL_STATIC_METHOD("UndercoverMonitor", "setUnitFree", [_target], _target, false);	
+		private _args = [_target, 3.0];
+		REMOTE_EXEC_CALL_STATIC_METHOD("undercoverMonitor", "boostSuspicion", _args, _target, false);
+	},
+	{ // code when finished
+		params ["_target", "_caller", "_actionId", "_arguments", "_progress", "_maxProgress"];
+		REMOTE_EXEC_CALL_STATIC_METHOD("UndercoverMonitor", "setUnitFree", [_target], _target, false);
 	},
 	{}, 
 	[],

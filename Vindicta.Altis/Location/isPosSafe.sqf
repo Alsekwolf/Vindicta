@@ -1,3 +1,5 @@
+#include "..\OOP_Light\OOP_Light.h"
+
 // Class: Location
 /*
 Method: (static)isPosSafe
@@ -17,7 +19,7 @@ Author: Sparker 29.07.2018
 
 //#define DEBUG
 
-params [ ["_thisClass", "", [""]], ["_pos", [], [[]]], ["_dir", 0, [0]], ["_className", "", [""]] ];
+params [P_THISCLASS, P_ARRAY("_pos"), P_NUMBER("_dir"), P_STRING("_className") ];
 
 // Bail if Z is below surface, as it happens with positions of bridges
 #ifdef DEBUG
@@ -32,9 +34,9 @@ if (_pos#2 < -0.3) exitWith {
 };
 
 private _bb = [_className] call misc_fnc_boundingBoxReal;
-private _bx = _bb select 1 select 0; //width
-private _by = _bb select 1 select 1; //lenth
-private _bz = _bb select 1 select 2; //height
+private _bx = _bb#1#0; //width
+private _by = _bb#1#1; //length
+private _bz = _bb#1#2; //height
 
 #ifdef DEBUG
 diag_log format ["  Classname: %1, bounding box: %2", _className, _bb];
@@ -68,21 +70,21 @@ diag_log format ["--- Positions ATL: %1", [[ASLTOATL _pos_0], [ASLTOATL _pos_1],
 } forEach [_pos_0, _pos_1, _pos_2, _pos_3];
 
 
-[{
-	(_this select 0) params ["_pos_0", "_pos_1", "_pos_2", "_pos_3"];
-	private _color = [1,1,0,1];
-	drawLine3D [_pos_0, _pos_2, _color];
-	drawLine3D [_pos_1, _pos_3, _color];
-	drawLine3D [_pos_1, _pos_2, _color];
-	drawLine3D [_pos_0, _pos_3, _color];
-},
-0,
-[ASLToAGL _pos_0, ASLToAGL _pos_1, ASLToAGL _pos_2, ASLToAGL _pos_3]] call CBA_fnc_addPerFrameHandler;
+[
+	{
+		(_this select 0) params ["_pos_0", "_pos_1", "_pos_2", "_pos_3"];
+		private _color = [1,1,0,1];
+		drawLine3D [_pos_0, _pos_2, _color];
+		drawLine3D [_pos_1, _pos_3, _color];
+		drawLine3D [_pos_1, _pos_2, _color];
+		drawLine3D [_pos_0, _pos_3, _color];
+	},
+	0,
+	[ASLToAGL _pos_0, ASLToAGL _pos_1, ASLToAGL _pos_2, ASLToAGL _pos_3]
+] call CBA_fnc_addPerFrameHandler;
 
 diag_log format ["  Pos 0...3 AGL: %1", [ASLToAGL _pos_0, ASLToAGL _pos_1, ASLToAGL _pos_2, ASLToAGL _pos_3]];
 #endif
-
-
 
 //Find objects
 //First check with line intersections

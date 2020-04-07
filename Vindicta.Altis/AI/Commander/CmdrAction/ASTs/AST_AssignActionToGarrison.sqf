@@ -11,10 +11,10 @@ doing something else.
 Parent: <ActionStateTransition>
 */
 CLASS("AST_AssignActionToGarrison", "ActionStateTransition");
-	VARIABLE_ATTR("successState", [ATTR_PRIVATE]);
+	VARIABLE_ATTR("successState", [ATTR_PRIVATE ARG ATTR_SAVE]);
 
 	// Inputs
-	VARIABLE_ATTR("garrIdVar", [ATTR_PRIVATE]);
+	VARIABLE_ATTR("garrIdVar", [ATTR_PRIVATE ARG ATTR_SAVE]);
 
 	/*
 	Method: new
@@ -66,7 +66,7 @@ ENDCLASS;
 	
 	private _class = OBJECT_PARENT_CLASS_STR(_thisObject);
 	["Object exists", !(isNil "_class")] call test_Assert;
-	//["Initial state is correct", GETV(_thisObject, "state") == CMDR_ACTION_STATE_START] call test_Assert;
+	//["Initial state is correct", T_GETV("state") == CMDR_ACTION_STATE_START] call test_Assert;
 }] call test_AddTest;
 
 ["AST_AssignActionToGarrison.apply", {
@@ -82,7 +82,7 @@ ENDCLASS;
 		[_IDASTVar]
 	);
 
-	private _endState = CALLM(_thisObject, "apply", [_world]);
+	private _endState = T_CALLM("apply", [_world]);
 	["State after apply is correct", _endState == CMDR_ACTION_STATE_END] call test_Assert;
 	["Action was applied correctly", CALLM(_garrison, "getAction", []) isEqualTo _action] call test_Assert;
 }] call test_AddTest;

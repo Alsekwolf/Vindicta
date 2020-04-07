@@ -12,19 +12,14 @@ Parent: <CmdrAction>
 
 CLASS("ConstructLocationCmdrAction", "CmdrAction")
 
-	VARIABLE("srcGarrID");
-	VARIABLE("locPos");
-	VARIABLE("locType");
-	VARIABLE("detachmentEffVar");	// Efficiency
-	VARIABLE("detachmentCompVar");	// Composition
-	VARIABLE("detachedGarrIdVar");
-	VARIABLE("startDateVar");
-	VARIABLE("buildRes");
-
-	#ifdef DEBUG_CMDRAI
-	VARIABLE("debugColor");
-	VARIABLE("debugSymbol");
-	#endif
+	VARIABLE_ATTR("srcGarrID", [ATTR_SAVE]);
+	VARIABLE_ATTR("locPos", [ATTR_SAVE]);
+	VARIABLE_ATTR("locType", [ATTR_SAVE]);
+	VARIABLE_ATTR("detachmentEffVar", [ATTR_SAVE]);	// Efficiency
+	VARIABLE_ATTR("detachmentCompVar", [ATTR_SAVE]);	// Composition
+	VARIABLE_ATTR("detachedGarrIdVar", [ATTR_SAVE]);
+	VARIABLE_ATTR("startDateVar", [ATTR_SAVE]);
+	VARIABLE_ATTR("buildRes", [ATTR_SAVE]);
 
 	METHOD("new") {
 		params [P_THISOBJECT, P_NUMBER("_srcGarrID"), P_POSITION("_locPos"), P_DYNAMIC("_locType")];
@@ -43,11 +38,6 @@ CLASS("ConstructLocationCmdrAction", "CmdrAction")
 		
 		private _startDateVar = T_CALLM1("createVariable", DATE_NOW); // Default to immediate, overriden at updateScore
 		T_SETV("startDateVar", _startDateVar);
-
-		#ifdef DEBUG_CMDRAI
-		T_SETV("debugColor", "ColorBrown");
-		T_SETV("debugSymbol", "loc_Ruin")
-		#endif
 	} ENDMETHOD;
 
 	METHOD("delete") {
@@ -314,11 +304,6 @@ CLASS("ConstructLocationCmdrAction", "CmdrAction")
 			// Send the intel to some places that should "know" about it
 			T_CALLM("addIntelAt", [_world ARG GETV(_srcGarr, "pos")]);
 			T_CALLM("addIntelAt", [_world ARG T_GETV("locPos")]);
-
-			// Reveal it to player side
-			if (random 100 < 80) then {
-				CALLSM1("AICommander", "revealIntelToPlayerSide", _intel);
-			};
 		} else {
 			T_CALLM("updateIntelFromDetachment", [_world ARG _intelClone]);
 			CALLM(_intelClone, "updateInDb", []);
@@ -364,8 +349,7 @@ CLASS("ConstructLocationCmdrAction", "CmdrAction")
 		private _locPos = T_GETV("locPos");
 		private _locType = T_GETV("locType");
 
-		T_PRVAR(debugColor);
-		T_PRVAR(debugSymbol);
+		GET_DEBUG_MARKER_STYLE(_thisObject) params ["_debugColor", "_debugSymbol"];
 
 		[_srcGarrPos, _locPos, _debugColor, 8, _thisObject + "_line"] call misc_fnc_mapDrawLine;
 
@@ -415,6 +399,8 @@ CLASS("ConstructLocationCmdrAction", "CmdrAction")
 
 ENDCLASS;
 
+REGISTER_DEBUG_MARKER_STYLE("ConstructLocationCmdrAction", "ColorBrown", "loc_Ruin");
+
 #ifdef _SQF_VM
 
 #define SRC_POS [0, 0, 0]
@@ -453,15 +439,15 @@ ENDCLASS;
 	private _thisObject = NEW("ConstructLocationCmdrAction", _args);
 
 	private _future = CALLM(_world, "simCopy", [WORLD_TYPE_SIM_FUTURE]);
-	CALLM(_thisObject, "updateScore", [_world ARG _future]);
+	T_CALLM("updateScore", [_world ARG _future]);
 
-	private _finalScore = CALLM(_thisObject, "getFinalScore", []);
-	diag_log format ["Construct location final score: %1", _finalScore];
+	private _finalScore = T_CALLM("getFinalScore", []);
+	//diag_log format ["Construct location final score: %1", _finalScore];
 	["Score is above zero", _finalScore > 0] call test_Assert;
 
 	// Apply to sim
-	private _nowSimState = CALLM(_thisObject, "applyToSim", [_world]);
-	private _futureSimState = CALLM(_thisObject, "applyToSim", [_future]);
+	private _nowSimState = T_CALLM("applyToSim", [_world]);
+	private _futureSimState = T_CALLM("applyToSim", [_future]);
 
 }] call test_AddTest;
 

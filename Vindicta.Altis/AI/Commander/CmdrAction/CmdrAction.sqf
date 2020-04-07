@@ -3,6 +3,7 @@
 #define OOP_WARNING
 #define OOP_ERROR
 
+#include "Actions\common.hpp"
 #include "..\common.hpp"
 
 /*
@@ -27,33 +28,34 @@ Parent: <RefCounted>
 CLASS("CmdrAction", ["RefCounted" ARG "Storable"])
 
 	// The priority of this action in relation to other actions of the same or different type.
-	VARIABLE_ATTR("scorePriority", [ATTR_PRIVATE]);
+	VARIABLE_ATTR("scorePriority", [ATTR_PRIVATE ARG ATTR_SAVE]);
 	// The resourcing available for this action.
-	VARIABLE_ATTR("scoreResource", [ATTR_PRIVATE]);
+	VARIABLE_ATTR("scoreResource", [ATTR_PRIVATE ARG ATTR_SAVE]);
 	// How strongly this action correlates with the current strategy.
-	VARIABLE_ATTR("scoreStrategy", [ATTR_PRIVATE]);
+	VARIABLE_ATTR("scoreStrategy", [ATTR_PRIVATE ARG ATTR_SAVE]);
 	// How close to being complete this action is (>1)
-	VARIABLE_ATTR("scoreCompleteness", [ATTR_PRIVATE]);
+	VARIABLE_ATTR("scoreCompleteness", [ATTR_PRIVATE ARG ATTR_SAVE]);
 
 	// State transition functions
-	VARIABLE_ATTR("transitions", [ATTR_PRIVATE]);
+	VARIABLE_ATTR("transitions", [ATTR_PRIVATE ARG ATTR_SAVE]);
 
 	// Registered AST_VARs. AST_VARs should be registered when they can be modified by any of the 
 	// ASTs, so that they can be saved and restored during simulation (don't want simulation 
 	// to effect real world actions).
-	VARIABLE("variables");
+	VARIABLE_ATTR("variables", [ATTR_SAVE]);
+
 	// AST_VARs saved during simulation, to be restored afterwards.
-	VARIABLE_ATTR("variablesStack", [ATTR_PRIVATE]);
+	VARIABLE_ATTR("variablesStack", [ATTR_PRIVATE ARG ATTR_SAVE]);
 	// Garrisons associated with this action, so we can automatically unassign this action from them 
 	// when it is finished.
-	VARIABLE_ATTR("garrisons", [ATTR_PRIVATE]);
+	VARIABLE_ATTR("garrisons", [ATTR_PRIVATE ARG ATTR_SAVE]);
 
 	// Current AST state of this action
-	VARIABLE_ATTR("state", [ATTR_GET_ONLY]);
+	VARIABLE_ATTR("state", [ATTR_GET_ONLY ARG ATTR_SAVE]);
 
 	// Intel object associated with this action
 	// It's an intel clone! The actual intel is in the database
-	VARIABLE_ATTR("intelClone", [ATTR_GET_ONLY]);
+	VARIABLE_ATTR("intelClone", [ATTR_GET_ONLY ARG ATTR_SAVE]);
 
 	METHOD("new") {
 		params [P_THISOBJECT];
@@ -203,6 +205,37 @@ CLASS("CmdrAction", ["RefCounted" ARG "Storable"])
 	} ENDMETHOD;
 
 	/*
+	Method: (protected) addIntelAtLocationForSide
+	Add the intel object of this action to the garrison of the specified side at a location.
+	
+	Parameters:
+		_location - <Model.LocationModel>, the location whose _side garrison the intel should be assigned to.
+		_side - <side>, the side of the garrisons to assign the intel to
+	*/
+	/*protected */ METHOD("addIntelAtLocationForSide") {
+		params [P_THISOBJECT, P_OOP_OBJECT("_location"), P_SIDE("_side")];
+		ASSERT_OBJECT_CLASS(_location, "LocationModel");
+		if(CALLM(_location, "isActual", [])) then {
+			T_PRVAR(intelClone);
+
+			// Bail if null
+			if (!IS_NULL_OBJECT(_intelClone)) then { // Because it can be objNull
+				private _intel = CALLM0(_intelClone, "getDbEntry");
+				private _locationActual = GETV(_location, "actual");
+				{
+					// It will make sure itself that it doesn't add duplicates of intel
+					private _AI = CALLM0(_x, "getAI");
+					CALLM2(_AI, "postMethodAsync", "addGeneralIntel", [_intel]);
+					//CALLM2(_AI, "postMethodAsync", "setIntelThis", [_intel]);
+				} forEach CALLM1(_locationActual, "getGarrisons", _side);
+				// TODO: implement this Sparker. 
+				// 	NOTES: Make Garrison.addIntel add the intel to the occupied location as well.
+				// 	NOTES: Make Garrison.addIntel only add if it isn't already there because this will happen often.
+			};
+		};
+	} ENDMETHOD;
+
+	/*
 	Method: (protected) setPersonalGarrisonIntel
 	*/
 	METHOD("setPersonalGarrisonIntel") {
@@ -256,6 +289,13 @@ CLASS("CmdrAction", ["RefCounted" ARG "Storable"])
 			*/
 			T_CALLM1("addGeneralGarrisonIntel", _garrison); // Note that we give general intel to this garrison, not personal
 		} forEach CALLM(_world, "getNearestGarrisons", [_pos ARG _radius]);
+
+		// Add intel for civilian informants in cities
+		{
+			T_CALLM2("addIntelAtLocationForSide", _x, civilian);
+		} forEach (CALLM(_world, "getNearestLocations", [_pos ARG _radius ARG [LOCATION_TYPE_CITY]]) apply {
+			_x#1
+		});
 
 		// Make enemies intercept this intel
 		T_PRVAR(intelClone);
@@ -319,7 +359,7 @@ CLASS("CmdrAction", ["RefCounted" ARG "Storable"])
 		// TODO: what is the correct to combine these scores?
 		// Should we try to get them all from 0 to 1?
 		// Maybe we want R*(iP + jS + kC)?
-		_scorePriority * _scoreResource * _scoreStrategy * _scoreCompleteness
+		CLAMP_POSITIVE(_scorePriority) * CLAMP_POSITIVE(_scoreResource) * CLAMP_POSITIVE(_scoreStrategy) * CLAMP_POSITIVE(_scoreCompleteness)
 	} ENDMETHOD;
 
 	/*
@@ -576,17 +616,21 @@ CLASS("CmdrAction", ["RefCounted" ARG "Storable"])
 		true
 	} ENDMETHOD;
 
-	// Save all varaibles
-	/* override */ METHOD("serializeForStorage") {
-		params [P_THISOBJECT];
-		SERIALIZE_ALL(_thisObject);
+	// SAVEBREAK >>>
+	// We don't need this after next save break at all
+	/* virtual */ METHOD("deserializeFromStorage") {
+		params [P_THISOBJECT, P_ARRAY("_serial"), P_NUMBER("_version")];
+		if(_version >= 15) then {
+			DESERIALIZE_SAVE_VER(_thisObject, _serial, _version)
+		} else {
+			#ifndef RELEASE_BUILD
+			_serial deleteAt 22;
+			_serial deleteAt 21;
+			#endif
+			DESERIALIZE_ALL(_thisObject, _serial)
+		}
 	} ENDMETHOD;
-
-	/* override */ METHOD("deserializeFromStorage") {
-		params [P_THISOBJECT, P_ARRAY("_serial")];
-		DESERIALIZE_ALL(_thisObject, _serial);
-		true
-	} ENDMETHOD;
+	// <<< SAVEBREAK
 
 	/* override */ METHOD("postDeserialize") {
 		params [P_THISOBJECT, P_OOP_OBJECT("_storage")];
@@ -608,6 +652,23 @@ CLASS("CmdrAction", ["RefCounted" ARG "Storable"])
 	
 ENDCLASS;
 
+if(isNil "gActionDebugMarkerStyle") then {
+	gActionDebugMarkerStyle = [];
+	debug_fnc_getDebugMarkerStyle = {
+		private _className = if(IS_OOP_OBJECT(_this)) then {
+			GET_OBJECT_CLASS(_this)
+		} else {
+			_this
+		};
+		private _idx = gActionDebugMarkerStyle findIf { (_x#0) isEqualTo _className };
+		if(_idx != -1) then {
+			[gActionDebugMarkerStyle#_idx#1, gActionDebugMarkerStyle#_idx#2]
+		} else {
+			["ColorRed", "loc_Ruin"]
+		}
+	};
+	REGISTER_DEBUG_MARKER_STYLE("CmdrAction", "ColorRed", "loc_Ruin");
+};
 
 // Unit test
 #ifdef _SQF_VM
@@ -722,14 +783,14 @@ ENDCLASS;
 	private _garrison = NEW("GarrisonModel", [_world ARG "<undefined>"]);
 
 	CALLM(_garrison, "setAction", [_thisObject]);
-	["Garrison registered correctly", (GETV(_thisObject, "garrisons") find _garrison) != NOT_FOUND] call test_Assert;
+	["Garrison registered correctly", (T_GETV("garrisons") find _garrison) != NOT_FOUND] call test_Assert;
 	
 	DELETE(_garrison);
-	["Garrison unregistered correctly", (GETV(_thisObject, "garrisons") find _garrison) == NOT_FOUND] call test_Assert;
+	["Garrison unregistered correctly", (T_GETV("garrisons") find _garrison) == NOT_FOUND] call test_Assert;
 
 	_garrison = NEW("GarrisonModel", [_world ARG "<undefined>"]);
 	CALLM(_garrison, "setAction", [_thisObject]);
-	["Garrison registered correctly 2", (GETV(_thisObject, "garrisons") find _garrison) != NOT_FOUND] call test_Assert;
+	["Garrison registered correctly 2", (T_GETV("garrisons") find _garrison) != NOT_FOUND] call test_Assert;
 	DELETE(_thisObject);
 	["Action cleared from garrison on delete", CALLM(_garrison, "getAction", []) == NULL_OBJECT] call test_Assert;
 }] call test_AddTest;
@@ -737,13 +798,13 @@ ENDCLASS;
 ["CmdrAction.createVariable, pushVariables, popVariables", {
 	private _thisObject = NEW("CmdrAction", []);
 
-	private _var = CALLM(_thisObject, "createVariable", [0]);
-	private _var2 = CALLM(_thisObject, "createVariable", [["test"]]);
+	private _var = T_CALLM("createVariable", [0]);
+	private _var2 = T_CALLM("createVariable", [["test"]]);
 
 	["Var is of correct form", _var isEqualTo 0] call test_Assert;
 	["Var2 is of correct form", _var2 isEqualTo 1] call test_Assert;
 
-	CALLM(_thisObject, "pushVariables", []);
+	T_CALLM("pushVariables", []);
 
 	SET_AST_VAR(_thisObject, _var, 1);
 	SET_AST_VAR(_thisObject, _var2, 2);
@@ -751,7 +812,7 @@ ENDCLASS;
 	["Var is changed before popVariables", GET_AST_VAR(_thisObject, _var) == 1] call test_Assert;
 	["Var2 is changed before popVariables", GET_AST_VAR(_thisObject, _var2) == 2] call test_Assert;
 
-	CALLM(_thisObject, "popVariables", []);
+	T_CALLM("popVariables", []);
 
 	//diag_log format [" Get var 0 after pop: %1", GET_AST_VAR(_thisObject, _var)];
 	//diag_log format [" Get var 1 after pop: %1", GET_AST_VAR(_thisObject, _var2)];
@@ -770,7 +831,7 @@ ENDCLASS;
 	private _action = NEW("CmdrAction", []);
 	private _garrison = NEW("GarrisonModel", [_world ARG "<undefined>"]);
 	private _thisObject = NEW("CmdrAction", []);
-	private _testVar = CALLM(_thisObject, "createVariable", ["original"]);
+	private _testVar = T_CALLM("createVariable", ["original"]);
 	private _asts = [
 		NEW("AST_KillGarrisonSetVar",
 			[_action] +
@@ -785,11 +846,11 @@ ENDCLASS;
 		)
 	];
 
-	SETV(_thisObject, "transitions", _asts);
+	T_SETV("transitions", _asts);
 
-	["Transitions correct", GETV(_thisObject, "transitions") isEqualTo _asts] call test_Assert;
+	["Transitions correct", T_GETV("transitions") isEqualTo _asts] call test_Assert;
 
-	private _finalState = CALLM(_thisObject, "applyToSim", [_world]);
+	private _finalState = T_CALLM("applyToSim", [_world]);
 	["applyToSim applied state to sim correctly", CALLM(_garrison, "isDead", [])] call test_Assert;
 	["applyToSim modified variables internally correctly", _finalState == CMDR_ACTION_STATE_END] call test_Assert;
 	["applyToSim reverted action variables correctly", GET_AST_VAR(_thisObject, _testVar) isEqualTo "original"] call test_Assert;

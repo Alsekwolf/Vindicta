@@ -9,7 +9,7 @@
 
 #define pr private
 
-#define CREATE_LOCATION_COST 20
+#define CREATE_LOCATION_COST 30
 
 CLASS("InGameMenuTabCommander", "DialogTabBase")
 
@@ -46,8 +46,14 @@ CLASS("InGameMenuTabCommander", "DialogTabBase")
 			// Tab headline
 			pr _ctrl = T_CALLM1("findControl", "TAB_CMDR_STATIC_CREATE_A_LOCATION");
 			_ctrl ctrlSetText "Create a location";
+
 			// Build resource cost
 			pr _buildResCost = CREATE_LOCATION_COST;
+			pr _progress = CALLM0(gGameMode, "getCampaignProgress"); // 0..1
+			//_buildResCost = 80 * (exp (1 + _progress));
+			//if (_progress < 0.03) then { _buildResCost = CREATE_LOCATION_COST; };
+			//_buildResCost = 10 * (ceil (_buildResCost / 10) ); // Round it to nearest 10 up
+
 			T_SETV("buildResourcesCost", _buildResCost);
 			pr _ctrl = T_CALLM1("findControl", "TAB_CMDR_STATIC_BUILD_RESOURCES");
 			_ctrl ctrlSetText (format ["%1 construction resources", _buildResCost]);
@@ -56,11 +62,40 @@ CLASS("InGameMenuTabCommander", "DialogTabBase")
 			pr _ctrl = T_CALLM1("findControl", "TAB_CMDR_COMBO_LOC_TYPE");
 			OOP_INFO_1("COMBO CTRL: %1", ctrlClassName _ctrl);
 			_ctrl lbAdd "Camp";
-			_ctrl lbAdd "Outpost";
 			_ctrl lbAdd "Roadblock";
 			_ctrl lbSetData [0, LOCATION_TYPE_CAMP];
-			_ctrl lbSetData [1, LOCATION_TYPE_OUTPOST];
-			_ctrl lbSetData [2, LOCATION_TYPE_ROADBLOCK];
+			_ctrl lbSetData [1, LOCATION_TYPE_ROADBLOCK];
+			//_ctrl lbAdd "Outpost";
+			//_ctrl lbSetData [1, LOCATION_TYPE_OUTPOST];
+
+			// set default selection to camp
+			_ctrl lbSetCurSel 0;
+
+			// randomize name
+			_ctrl = T_CALLM1("findControl", "TAB_CMDR_EDIT_LOC_NAME");
+			pr _newLocName = selectRandom [
+				"Camp Bravo",
+				"Camp Charlie",
+				"Camp Delta",
+				"Camp Echo",
+				"Camp Foxtrot",
+				"Camp Juliet",
+				"Camp Eskimo",
+				"Camp Sierra",
+				"Camp India",
+				"Camp X-Ray",
+				"Camp Lima",
+				"Camp Romeo",
+				"Camp Victory",
+				"Camp Victor",
+				"Camp Zulu",
+				"Camp William",
+				"Camp Sparklight",
+				"Camp Redstone",
+				"Camp Blackstone",
+				"Camp Alpha"
+			];
+			_ctrl ctrlSetText _newLocName;
 
 			T_CALLM3("controlAddEventHandler", "TAB_CMDR_BUTTON_CREATE_LOC", "buttonClick", "onButtonCreateLocation");
 		} else {
@@ -109,6 +144,7 @@ CLASS("InGameMenuTabCommander", "DialogTabBase")
 				pr _borderLinearSize = sqrt _borderArea;
 				pr _buildResPerSize = CREATE_LOCATION_COST / (sqrt (3.14*50*50)); // We require CREATE_LOCATION_COST build res for a circle with 50 meter radius
 				_buildResCost = _borderLinearSize * _buildResPerSize;
+				pr _progress = CALLM0(gGameMode, "getCampaignProgress"); // 0..1
 				_buildResCost = 10 * (ceil (_buildResCost / 10) ); // Round it to nearest 10 up
 			};
 			
@@ -163,20 +199,25 @@ CLASS("InGameMenuTabCommander", "DialogTabBase")
 
 		// Ensure proper input
 		if (count _locName == 0) exitWith {
-			CALLM1(_dialogObj, "setHintText", "You must specify a proper name");
+			CALLM1(_dialogObj, "setHintText", "You must specify a proper name.");
 		};
 
 		if (_row < 0) exitWith {
-			CALLM1(_dialogObj, "setHintText", "You must select a location type");
+			CALLM1(_dialogObj, "setHintText", "You must select a location type.");
 		};
+
+		// Disable button before sending message to server to avoid race condition
+		pr _ctrl = T_CALLM1("findControl", "TAB_CMDR_BUTTON_CREATE_LOC");
+		_ctrl ctrlEnable false;
 
 		// Send data to cmdr at the server
 		// Server might run extra checks
 		pr _locType = _ctrlLocType lbData _row;
+
 		// Source object where build resources will be deleted from, player or vehicle he's looking at
 		pr _hBuildResSrc = if (_playerBuildRes >= _buildResCost) then {player} else {_cursorObject};
 		pr _AI = CALLSM1("AICommander", "getAICommander", playerSide);
-		pr _args = [clientOwner, getPosWorld player, _locType, _locName, _hBuildResSrc];
+		pr _args = [clientOwner, getPosWorld player, _locType, _locName, _hBuildResSrc, _buildResCost];
 		CALLM2(_AI, "postMethodAsync", "clientCreateLocation", _args);
 
 		CALLM1(_dialogObj, "setHintText", "Creating new location ...");
@@ -206,7 +247,6 @@ CLASS("InGameMenuTabCommander", "DialogTabBase")
 			T_CALLM1("setHintText", "We already own this place!");
 		};
 
-
 		// Check if player has enough build resources
 		pr _cursorObject = if ((player distance cursorObject) < 10) then {cursorObject} else {objNull};
 		pr _coBuildRes = CALLSM1("Unit", "getVehicleBuildResources", _cursorObject);
@@ -220,18 +260,22 @@ CLASS("InGameMenuTabCommander", "DialogTabBase")
 			T_CALLM1("setHintText", _text);
 		};
 
+		// Disable button before sending message to server to avoid race condition
+		pr _ctrl = T_CALLM1("findControl", "TAB_CMDR_BUTTON_CREATE_LOC");
+		_ctrl ctrlEnable false;
+
 		// Send data to cmdr at the server
 		// Server might run extra checks
 		// Source object where build resources will be deleted from, player or vehicle he's looking at
 		pr _hBuildResSrc = if (_playerBuildRes >= _buildResCost) then {player} else {_cursorObject};
 		pr _AI = CALLSM1("AICommander", "getAICommander", playerSide);
-		pr _args = [clientOwner, _currentLoc, _hBuildResSrc];
+		pr _args = [clientOwner, _currentLoc, _hBuildResSrc, _buildResCost];
 		CALLM2(_AI, "postMethodAsync", "clientClaimLocation", _args);
-
 	} ENDMETHOD;
 
 	STATIC_METHOD("showServerResponse") {
 		params [P_THISCLASS, P_STRING("_text")];
+
 		// If this tab is already closed, just throw text into system chat
 		if (isNil "gTabCommander") then {
 			systemChat _text;

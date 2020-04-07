@@ -15,6 +15,7 @@ OOP_INFO_1("  this side: %1", T_GETV("side"));
 
 if(T_CALLM("isDestroyed", [])) exitWith {
 	OOP_WARNING_MSG("Attempted to call function on destroyed garrison %1", [_thisObject]);
+	DUMP_CALLSTACK;
 };
 pr _dstSpawnMin = 1200; // Temporary, spawn distance
 pr _dstSpawnMax = 1400; // Temporary, spawn distance
@@ -22,7 +23,7 @@ pr _dstSpawnMax = 1400; // Temporary, spawn distance
 pr _side = T_GETV("side");
 pr _loc = T_GETV("location");
 pr _thisPos = if (_loc == "") then {
-	CALLM0(_thisObject, "getPos")
+	T_CALLM0("getPos")
 } else {
 	CALLM0(_loc, "getPos")
 };
@@ -70,7 +71,7 @@ switch (T_GETV("spawned")) do {
 		if (_dstMin < _dstSpawnMin) then {
 			OOP_INFO_0("  Spawning...");
 
-			CALLM0(_thisObject, "spawn");
+			T_CALLM0("spawn");
 
 			// Set timer interval
 			pr _interval = 4;
@@ -83,7 +84,7 @@ switch (T_GETV("spawned")) do {
 			pr _dstToThreshold = _dstMin - _dstSpawnMin;
 			pr _interval = (_dstToThreshold / _speedMax) max 5;
 			//pr _interval = 2; // todo override this some day later
-			//diag_log format ["[Location] Info: interval was set to %1 for %2, distance: %3:", _interval, GET_VAR(_thisObject, "name"), _dstMin];
+			//diag_log format ["[Location] Info: interval was set to %1 for %2, distance: %3:", _interval, T_GETV("name"), _dstMin];
 
 			#ifdef DEBUG
 			OOP_INFO_1("  Set interval: %1", _interval);
@@ -96,7 +97,7 @@ switch (T_GETV("spawned")) do {
 		if (_dstMin > _dstSpawnMax) then {
 			OOP_INFO_0("  Despawning...");
 			
-			CALLM0(_thisObject, "despawn");
+			T_CALLM0("despawn");
 		};
 	}; // case 1
 }; // switch spawn state

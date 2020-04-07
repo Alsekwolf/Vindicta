@@ -5,6 +5,7 @@
 
 #define OFSTREAM_FILE "UI.rpt"
 #include "..\..\OOP_Light\OOP_Light.h"
+#include "..\Resources\UIProfileColors.h"
 
 #define __CLASS_NAME "InGameMenuTabGameModeInit"
 
@@ -25,11 +26,20 @@ CLASS(__CLASS_NAME, "DialogTabBase")
 
 		// Add event handlers
 		T_CALLM3("controlAddEventHandler", "TAB_GMINIT_BUTTON_START", "buttonClick", "onButtonStart");
+		T_CALLM3("controlAddEventHandler", "TAB_GMINIT_BUTTON_RND", "buttonClick", "onButtonRnd");
 
 		// Populate combo boxes
 		pr _cbGameMode = T_CALLM1("findControl", "TAB_GMINIT_COMBO_GAME_MODE");
 		pr _cbEnemyFaction = T_CALLM1("findControl", "TAB_GMINIT_COMBO_ENEMY_FACTION");
 		pr _cbPoliceFaction = T_CALLM1("findControl", "TAB_GMINIT_COMBO_POLICE_FACTION");
+		pr _cbCivilianFaction = T_CALLM1("findControl", "TAB_GMINIT_COMBO_CIV_FACTION");
+
+		// TODO settings
+		pr _btnSettings = T_CALLM1("findControl", "TAB_GMINIT_BUTTON_SETTINGS");
+		_btnSettings ctrlEnable false;
+		_btnSettings ctrlSetTooltip "Not yet implemented.";
+
+		T_CALLM0("onButtonRnd");
 
 		// Add game mode names
 		pr _gameModes = [["Civil War", "CivilWarGameMode"]];
@@ -60,8 +70,13 @@ CLASS(__CLASS_NAME, "DialogTabBase")
 				if ((_t select T_FACTION) == T_FACTION_Military) then {	// Ignore non-military factions
 					pr _lbData = _tName;
 					pr _text = _t select T_DISPLAY_NAME;
-					_cbEnemyFaction lbAdd _text;
+					pr _indexCB = _cbEnemyFaction lbAdd _text;
 					_cbEnemyFaction lbSetData [_counter, _lbData];
+
+					// set text color for factions with missing addons
+					if (count (_t#T_MISSING_ADDONS) > 0) then {
+						_cbEnemyFaction lbSetColor [_indexCB, MUIC_COLOR_BTN_RED];
+					};
 				};
 				_counter = _counter + 1;
 			};
@@ -76,12 +91,37 @@ CLASS(__CLASS_NAME, "DialogTabBase")
 			if (_t#T_FACTION == T_FACTION_Police) then {
 				pr _text = _t select T_DISPLAY_NAME;
 				pr _lbData = _tName;
-				_cbPoliceFaction lbAdd _text;						// Set text from template name
-				_cbPoliceFaction lbSetData [_counter, _lbData];// Set data - template internal name
+				pr _indexCB = _cbPoliceFaction lbAdd _text;			// Set text from template name
+				_cbPoliceFaction lbSetData [_counter, _lbData];		// Set data - template internal name
 				_counter = _counter + 1;
+
+				// set text color for factions with missing addons
+				if (count (_t#T_MISSING_ADDONS) > 0) then {
+					_cbPoliceFaction lbSetColor [_indexCB, MUIC_COLOR_BTN_RED];
+				};
 			};
 		} forEach (call t_fnc_getAllTemplateNames);
 		_cbPoliceFaction lbSetCurSel 0;
+
+		// Add civilian factions
+		pr _counter = 0;
+		{
+			pr _tName = _x;
+			pr _t = [_tName] call t_fnc_getTemplate;
+			if (_t#T_FACTION == T_FACTION_Civ) then {
+				pr _text = _t select T_DISPLAY_NAME;
+				pr _lbData = _tName;
+				pr _indexCB = _cbCivilianFaction lbAdd _text; 		// Set text from template name
+				_cbCivilianFaction lbSetData [_counter, _lbData]; 	// Set data - template internal name
+				_counter = _counter + 1;
+
+				// set text color for factions with missing addons
+				if (count (_t#T_MISSING_ADDONS) > 0) then {
+					_cbCivilianFaction lbSetColor [_indexCB, MUIC_COLOR_BTN_RED];
+				};
+			};
+		} forEach (call t_fnc_getAllTemplateNames);
+		_cbCivilianFaction lbSetCurSel 0;
 
 		// Enable/disable controls depending on user's permissions
 		pr _bnStart = T_CALLM1("findControl", "TAB_GMINIT_BUTTON_START");
@@ -94,6 +134,7 @@ CLASS(__CLASS_NAME, "DialogTabBase")
 		// Add control event handlers
 		T_CALLM3("controlAddEventHandler", "TAB_GMINIT_COMBO_ENEMY_FACTION", "LBSelChanged", "onCbSelChanged");
 		T_CALLM3("controlAddEventHandler", "TAB_GMINIT_COMBO_POLICE_FACTION", "LBSelChanged", "onCbSelChanged");
+		T_CALLM3("controlAddEventHandler", "TAB_GMINIT_COMBO_CIV_FACTION", "LBSelChanged", "onCbSelChanged");
 
 		// Update the description
 		T_CALLM0("updateDescription");
@@ -119,41 +160,50 @@ CLASS(__CLASS_NAME, "DialogTabBase")
 
 		pr _cbEnemyFaction = T_CALLM1("findControl", "TAB_GMINIT_COMBO_ENEMY_FACTION");
 		pr _cbPoliceFaction = T_CALLM1("findControl", "TAB_GMINIT_COMBO_POLICE_FACTION");
-		pr _staticDescription = T_CALLM1("findControl", "TAB_GMINIT_STATIC_DESCRIPTION");
-
-		pr _str = "Chosen factions:\n";
+		pr _cbCivilianFaction = T_CALLM1("findControl", "TAB_GMINIT_COMBO_CIV_FACTION");
+		pr _staticDescription = T_CALLM1("findControl", "TAB_GMINIT_LISTNBOX_SETTINGS");
+		lnbClear _staticDescription;
+		_staticDescription lnbSetColumnsPos [0, 0.4];
 
 		// Format text according to selected factions.
 		pr _enemyTemplateName = LB_CUR_SEL_DATA(_cbEnemyFaction);
 		pr _policeTemplateName = LB_CUR_SEL_DATA(_cbPoliceFaction);
+		pr _civilianTemplateName = LB_CUR_SEL_DATA(_cbCivilianFaction);
 		{
 			pr _t = [_x] call t_fnc_getTemplate;
-			_str = _str + format ["- %1\n%2\n", _t#T_DISPLAY_NAME, _t#T_DESCRIPTION];
+			pr _rowIndex = _staticDescription lnbAddRow [_t#T_DISPLAY_NAME, (localize "STR_INIT_TOOLTIPHOVER")];
 
-			// Add more text if tempalte is not valid
+#ifndef _SQF_VM
+			_staticDescription lnbSetTooltip [[_rowIndex, 0], _t#T_DESCRIPTION];
+#endif
+
+			// Add more text if template is not valid
 			if (!(_t#T_VALID)) then {
 				if (count (_t#T_MISSING_ADDONS) > 0) then {
-					_str = _str + "ERROR: following addons are missing for this faction: ";
+					_strCol1 = (localize "STR_INIT_ERROR2");
 					{
-						_str = _str + _x;
-						if (_forEachIndex < (count (_t#T_MISSING_ADDONS)) - 1) then {
-							_str = _str + ", ";
-						} else {
-							_str = _str + ".\n";
-						};
+						pr _rowIndex = _staticDescription lnbAddRow [_strCol1, _x];
+
+						// warning red!
+						_staticDescription lnbSetColor [[_rowIndex, 0], MUIC_COLOR_BTN_RED];
+						_staticDescription lnbSetColor [[_rowIndex, 1], MUIC_COLOR_BTN_RED];
 					} forEach (_t#T_MISSING_ADDONS);
 				} else {
-					_str = _str + format ["ERROR: faction file has errors. Check .RPT file for more info."];
+					pr _strError = (localize "STR_INIT_ERROR1");
+					pr _rowIndex = _staticDescription lnbAddRow [_strError];
+					_staticDescription lnbSetColor [[_rowIndex, 0], MUIC_COLOR_BTN_RED];
+					_staticDescription lnbSetColor [[_rowIndex, 1], MUIC_COLOR_BTN_RED];
 				};
 			};
-
-			_str = _str + "\n";
-		} forEach [_enemyTemplateName, _policeTemplateName];
-
-		_staticDescription ctrlSetText _str;
-
+		} forEach [_enemyTemplateName, _policeTemplateName, _civilianTemplateName];
 	} ENDMETHOD;
 
+	METHOD("onButtonRnd") {
+		params [P_THISOBJECT];
+		pr _editCampaignName = T_CALLM1("findControl", "TAB_GMINIT_EDIT_CAMPAIGN_NAME");
+		_editCampaignName ctrlSetText (selectRandom (call compile preprocessFileLineNumbers "Templates\campaignNames.sqf"));
+	} ENDMETHOD;
+	
 	METHOD("onButtonStart") {
 		params [P_THISOBJECT];
 
@@ -161,6 +211,7 @@ CLASS(__CLASS_NAME, "DialogTabBase")
 		pr _cbGameMode = T_CALLM1("findControl", "TAB_GMINIT_COMBO_GAME_MODE");
 		pr _cbEnemyFaction = T_CALLM1("findControl", "TAB_GMINIT_COMBO_ENEMY_FACTION");
 		pr _cbPoliceFaction = T_CALLM1("findControl", "TAB_GMINIT_COMBO_POLICE_FACTION");
+		pr _cbCivilianFaction = T_CALLM1("findControl", "TAB_GMINIT_COMBO_CIV_FACTION");
 		pr _editCampaignName = T_CALLM1("findControl", "TAB_GMINIT_EDIT_CAMPAIGN_NAME");
 		pr _editEnemyForcePercent = T_CALLM1("findControl", "TAB_GMINIT_EDIT_ENEMY_PERCENTAGE");
 
@@ -169,20 +220,21 @@ CLASS(__CLASS_NAME, "DialogTabBase")
 		// Campaign name
 		pr _campaignName = ctrlText _editCampaignName;
 		if (count _campaignName == 0) exitWith {
-			CALLM1(_dialogObj, "setHintText", "You must enter a campaign name");
+			CALLM1(_dialogObj, "setHintText", "You must enter a campaign name.");
 		};
 
 		// Enemy force
 		pr _enemyForceText = ctrlText _editEnemyForcePercent;
 		pr _enemyForcePercent = parseNumber _enemyForceText;
 		if (isNil "_enemyForcePercent") exitWith {
-			CALLM1(_dialogObj, "setHintText", "You must enter a valid amount of enemy forces");
+			CALLM1(_dialogObj, "setHintText", "You must enter a valid amount of enemy forces.");
 		};
 		_enemyForcePercent = (_enemyForcePercent max 0) min 1000;
 
 		pr _gameModeClassName = LB_CUR_SEL_DATA(_cbGameMode);
 		pr _enemyTemplateName = LB_CUR_SEL_DATA(_cbEnemyFaction);
 		pr _policeTemplateName = LB_CUR_SEL_DATA(_cbPoliceFaction);
+		pr _civilianTemplateName = LB_CUR_SEL_DATA(_cbCivilianFaction);
 
 		// Verify templates
 		// todo really we must check that on server
@@ -192,16 +244,16 @@ CLASS(__CLASS_NAME, "DialogTabBase")
 			if (!(_t select T_VALID)) then {
 				_templatesGood = false;
 			};
-		} forEach [_enemyTemplateName, _policeTemplateName];
+		} forEach [_enemyTemplateName, _policeTemplateName, _civilianTemplateName];
 
 		// Bail if incompatible template was selected
 		if (!_templatesGood) exitWith {
-			CALLM1(_dialogObj, "setHintText", "ERROR: You must select factions which have all the addons loaded on the server");
+			CALLM1(_dialogObj, "setHintText", "ERROR: You must select factions which have all the addons loaded on the server.");
 		};
 
 		// Send data to server's GameManager
-		pr _gameModeParams = [_enemyTemplateName, _policeTemplateName, _enemyForcePercent];
-		pr _templatesVerify = [_enemyTemplateName, _policeTemplateName];
+		pr _gameModeParams = [_enemyTemplateName, _policeTemplateName, _civilianTemplateName, _enemyForcePercent];
+		pr _templatesVerify = [_enemyTemplateName, _policeTemplateName, _civilianTemplateName];
 		pr _args = [clientOwner, _gameModeClassName, _gameModeParams, _campaignName, _templatesVerify];
 		CALLM2(gGameManagerServer, "postMethodAsync", "initCampaignServer", _args);
 

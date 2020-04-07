@@ -1,26 +1,23 @@
-/*
- * OOP-Light
- * A preprocessor-based limited OOP implementation for SQF
- * Author: Sparker
- * 02.06.2018
-*/
+#include "..\config\global_config.hpp"
 
-/*
- * Technical info:
- *
- * Name formatting:
- * Special static class members:	o_MyClass_sm_mySpecialMember
- * Static class members: 			o_MyClass_st_myStaticMember
- * General members:					o_MyClass_N_123_myMember
- *
- * Special class members:
- * special members are static members of the class meant to be accessed only by the internals of the OOP-Light
- * nextID			- NUMBER counter to provide a new ID each time an object of this class is created
- * memList			- ARRAY with all members of this class
- * staticMemList	- ARRAY with all static members of this class
- * methodList		- ARRAY with all methods and static methods of this class
- *
- */
+//  * OOP-Light
+//  * A preprocessor-based limited OOP implementation for SQF
+//  * Author: Sparker
+//  * 02.06.2018
+
+//  * Technical info:
+//  *
+//  * Name formatting:
+//  * Special static class members:	o_MyClass_sm_mySpecialMember
+//  * Static class members: 			o_MyClass_st_myStaticMember
+//  * General members:					o_MyClass_N_123_myMember
+//  *
+//  * Special class members:
+//  * special members are static members of the class meant to be accessed only by the internals of the OOP-Light
+//  * nextID			- NUMBER counter to provide a new ID each time an object of this class is created
+//  * memList			- ARRAY with all members of this class
+//  * staticMemList	- ARRAY with all static members of this class
+//  * methodList		- ARRAY with all methods and static methods of this class
 
 // ----------------------------------------------------
 // |          C O N T R O L  F L A G S                |
@@ -33,7 +30,7 @@
 // Enables output to external file with ofstream in all OOP classes
 // It's a global flag, must be defined here
 
-#define OFSTREAM_ENABLE
+// #define OFSTREAM_ENABLE
 
 // #define OOP_PROFILE
 
@@ -52,17 +49,17 @@
 // Define it at the top of the file per every class where you need to count objects
 //#define PROFILER_COUNTERS_ENABLE
 
-// Notifies code that Arma Debug Engine is enabled. Currently it is used to dump callstack.
-#define ADE
-
 // Enables logging of each REF/UNREF on OOP objects
 //#define OOP_LOG_REF_UNREF
 
-// ----------------------------------------------------------------------
-// |               C O N F I G   E N T R Y   P O I N T                  |
-// ----------------------------------------------------------------------
 
-#include "..\config\global_config.hpp"
+// Enforce some constraints
+#ifndef OFSTREAM_FILE
+#define OFSTREAM_FILE "OOP.rpt"
+#endif
+#ifndef OFSTREAM_ENABLE
+#undef OFSTREAM_FILE
+#endif
 
 #ifdef _SQF_VM
 // ___ SQF-VM ___
@@ -76,11 +73,13 @@
 #define VM_LOG_FMT(t, args) diag_log format ([t] + args)
 #define OOP_ASSERT
 #define OOP_ASSERT_ACCESS
-//#undef OOP_DEBUG
+#undef OOP_DEBUG
 #undef OOP_INFO
 #define OOP_WARNING
 #define OOP_ERROR
 #undef OOP_PROFILE
+#undef UNIT_ALLOCATOR_DEBUG
+#undef DEBUG_GOAL_MARKERS
 
 #define TIME_NOW 0
 #define DATE_NOW [0,0,0,0,0]
@@ -117,6 +116,13 @@
 #define SCRIPT_NULL scriptNull
 #endif
 // ^^^ ARMA ^^^
+
+// Some BS to force Arma preprocessor line numbers to be correct.
+// You basically have to put this after every pre-processor block if you want the correct line numbers
+#define FIX_LINE_NUMBERS2(sharp) sharp##line __LINE__ __FILE__
+// Use this with () but WITHOUT terminating ; like:
+// FIX_LINE_NUMBERS()
+#define FIX_LINE_NUMBERS() FIX_LINE_NUMBERS2(#)
 
 // ----------------------------------------------------------------------
 // |                P R O F I L E R   C O U N T E R S                   |
@@ -184,6 +190,7 @@
 #define P_STRING(paramNameStr) [paramNameStr, "", [""]]
 #define P_TEXT(paramNameStr) paramNameStr
 #define P_OBJECT(paramNameStr) [paramNameStr, objNull, [objNull]]
+#define P_GROUP(paramNameStr) [paramNameStr, grpNull, [grpNull]]
 #define P_NUMBER(paramNameStr) [paramNameStr, 0, [0]]
 #define P_NUMBER_DEFAULT(paramNameStr, defaultVal) [paramNameStr, defaultVal, [0]]
 #define P_SIDE(paramNameStr) [paramNameStr, WEST, [WEST]]
@@ -435,7 +442,13 @@
 #define T_CALLM4(a, b, c, d, e) CALL_METHOD_4(_thisObject, a, b, c, d, e)
 
 // Call an overidden method from the overriding method.
-#define T_CALLCM(classNameStr, methodNameStr, extraParams) ([_thisObject]+extraParams call GET_METHOD(classNameStr, methodNameStr))
+#define T_CALLCM (classNameStr, methodNameStr, extraParams) 	([_thisObject]+extraParams 		call GET_METHOD(classNameStr, methodNameStr))
+#define T_CALLCM0(classNameStr, methodNameStr) 					([_thisObject] 					call GET_METHOD(classNameStr, methodNameStr))
+#define T_CALLCM1(classNameStr, methodNameStr, a) 				([_thisObject, a] 				call GET_METHOD(classNameStr, methodNameStr))
+#define T_CALLCM2(classNameStr, methodNameStr, a, b) 			([_thisObject, a, b] 			call GET_METHOD(classNameStr, methodNameStr))
+#define T_CALLCM3(classNameStr, methodNameStr, a, b, c) 		([_thisObject, a, b, c] 		call GET_METHOD(classNameStr, methodNameStr))
+#define T_CALLCM4(classNameStr, methodNameStr, a, b, c, d) 		([_thisObject, a, b, c, d] 		call GET_METHOD(classNameStr, methodNameStr))
+#define T_CALLCM5(classNameStr, methodNameStr, a, b, c, d, e) 	([_thisObject, a, b, c, d, e] 	call GET_METHOD(classNameStr, methodNameStr))
 
 #define CALLSM0(a, b) CALL_STATIC_METHOD_0(a, b)
 #define CALLSM1(a, b, c) CALL_STATIC_METHOD_1(a, b, c)
@@ -481,15 +494,24 @@
 // |       M E M B E R   D E C L A R A T I O N S       |
 // -----------------------------------------------------
 
-#define VARIABLE(varNameStr) _oop_memList pushBackUnique [varNameStr, []]
+#define VARIABLE(varNameStr) VARIABLE_ATTR(varNameStr, [])
+#define STATIC_VARIABLE(varNameStr) STATIC_VARIABLE_ATTR(varNameStr, [])
+
+#ifdef OOP_ASSERT
+#define VARIABLE_ATTR(varNameStr, attributes) \
+	if(!((varNameStr) in [OOP_PARENT_STR, OOP_PUBLIC_STR]) && (_oop_memList findIf { (_x select 0) isEqualTo (varNameStr) } != NOT_FOUND)) then { \
+		OOP_ERROR_2("Class %1 is hiding variable '%2' in parent", _oop_classNameStr, varNameStr); \
+	}; \
+	_oop_memList pushBackUnique [varNameStr, attributes]
+#define STATIC_VARIABLE_ATTR(varNameStr, attributes) \
+	if(_oop_staticMemList findIf { (_x select 0) isEqualTo (varNameStr) } != NOT_FOUND) then { \
+		OOP_ERROR_2("Class %1 is hiding static variable '%2' in parent", _oop_classNameStr, varNameStr); \
+	}; \
+	_oop_staticMemList pushBackUnique [varNameStr, attributes]
+#else
 #define VARIABLE_ATTR(varNameStr, attributes) _oop_memList pushBackUnique [varNameStr, attributes]
-
-#define STATIC_VARIABLE(varNameStr) _oop_staticMemList pushBackUnique [varNameStr, []]
 #define STATIC_VARIABLE_ATTR(varNameStr, attributes) _oop_staticMemList pushBackUnique [varNameStr, attributes]
-
-#define MEMBER(memNameStr) VARIABLE(memNameStr)
-
-#define STATIC_MEMBER(memNameStr) STATIC_VARIABLE(memNameStr)
+#endif
 
 // -----------------------------------------------------
 // |                 P R O F I L I N G                 |
@@ -567,23 +589,23 @@
 #endif
 
 // Enable function wrappers if logging macros are used
-/*
-#ifdef OOP_DEBUG
-#define _OOP_FUNCTION_WRAPPERS
-#endif
-#ifdef OOP_INFO
-#define _OOP_FUNCTION_WRAPPERS
-#endif
-#ifdef OOP_WARNING
-#define _OOP_FUNCTION_WRAPPERS
-#endif
-#ifdef OOP_ERROR
-#define _OOP_FUNCTION_WRAPPERS
-#endif
-#ifdef OOP_DEBUG
-#define _OOP_FUNCTION_WRAPPERS
-#endif
-*/
+// /*
+// #ifdef OOP_DEBUG
+// #define _OOP_FUNCTION_WRAPPERS
+// #endif
+// #ifdef OOP_INFO
+// #define _OOP_FUNCTION_WRAPPERS
+// #endif
+// #ifdef OOP_WARNING
+// #define _OOP_FUNCTION_WRAPPERS
+// #endif
+// #ifdef OOP_ERROR
+// #define _OOP_FUNCTION_WRAPPERS
+// #endif
+// #ifdef OOP_DEBUG
+// #define _OOP_FUNCTION_WRAPPERS
+// #endif
+// */
 
 // Enable function wrappers if access assertions are enabled
 #ifdef OOP_ASSERT_ACCESS
@@ -733,16 +755,15 @@
 // |              C L A S S               |
 // ----------------------------------------
 
-/*
- * Technical info:
- * First we initialize special members of the class, then we initialize new, delete and copy methods.
- * The name of this class is added to the hierarchy of its base class, if it's not "".
- * The methods of base class are copied to the methods of the derived class, except for "new" and "delete", because they will be called through the hierarchy anyway.
- */
+// /*
+//  * Technical info:
+//  * First we initialize special members of the class, then we initialize new, delete and copy methods.
+//  * The name of this class is added to the hierarchy of its base class, if it's not "".
+//  * The methods of base class are copied to the methods of the derived class, except for "new" and "delete", because they will be called through the hierarchy anyway.
+//  */
 
 #define CLASS(classNameStr, baseClassNames) \
 call { \
-diag_log TEXT_ format ["CLASS %1 <- %2", classNameStr, baseClassNames]; \
 private _oop_classNameStr = classNameStr; \
 SET_SPECIAL_MEM(_oop_classNameStr, NEXT_ID_STR, OOP_ID_COUNTER_NEW); \
 private _oop_memList = []; \
@@ -792,11 +813,11 @@ VARIABLE(OOP_PUBLIC_STR);
 // |           E N D C L A S S            |
 // ----------------------------------------
 
-/*
- * Technical info:
- * It just terminates the call block of the CLASS
- * Also it calculates an array with serializable members
- */
+// /*
+//  * Technical info:
+//  * It just terminates the call block of the CLASS
+//  * Also it calculates an array with serializable members
+//  */
 
 #define ENDCLASS  \
 private _serialVariables = GET_SPECIAL_MEM(_oop_classNameStr, MEM_LIST_STR); \
@@ -811,10 +832,10 @@ SET_SPECIAL_MEM(_oop_classNameStr, SERIAL_MEM_LIST_STR, _serialVariables); \
 // |        C O N S T R U C T O R  O F   E X I S T I N G   O B J E C T  |
 // ----------------------------------------------------------------------
 
-/*
- * Technical info:
- * Creates an object with given name, doesn't call its constructor.
- */
+// /*
+//  * Technical info:
+//  * Creates an object with given name, doesn't call its constructor.
+//  */
 
 #define NEW_EXISTING(classNameStr, objNameStr) [] call { \
 FORCE_SET_MEM(objNameStr, OOP_PARENT_STR, classNameStr); \
@@ -833,12 +854,12 @@ objNameStr \
 // |        C O N S T R U C T O R         |
 // ----------------------------------------
 
-/*
- * Technical info:
- * Check the class name if needed.
- * Increase the object counter for this class.
- * Call all constructors of the base classes from base to derived classes.
- */
+// /*
+//  * Technical info:
+//  * Check the class name if needed.
+//  * Increase the object counter for this class.
+//  * Call all constructors of the base classes from base to derived classes.
+//  */
 
 #ifdef OOP_ASSERT
 #define CONSTRUCTOR_ASSERT_CLASS(classNameStr) if (!([classNameStr, __FILE__, __LINE__] call OOP_assert_class)) exitWith {format ["ERROR_NO_CLASS_%1", classNameStr]};
@@ -852,12 +873,12 @@ objNameStr \
 // |        C O N S T R U C T O R  O F  P U B L I C   O B J E C T        |
 // -----------------------------------------------------------------------
 
-/*
- * Creates a 'public' object that will also exist across other computers in multiplayer.
- * Same as constructor, but also marks the object as public with a OOP_PUBLIC_STR variable.
- * It also transmits oop_parent and oop_public variables with publicVariable.
- * It doesn't mean the object's variables will be streamed across MP network, you still need to do it yourself.
- */
+// /*
+//  * Creates a 'public' object that will also exist across other computers in multiplayer.
+//  * Same as constructor, but also marks the object as public with a OOP_PUBLIC_STR variable.
+//  * It also transmits oop_parent and oop_public variables with publicVariable.
+//  * It doesn't mean the object's variables will be streamed across MP network, you still need to do it yourself.
+//  */
 
 #define NEW_PUBLIC(classNameStr, extraParams) ([classNameStr, extraParams] call OOP_new_public) 
 
@@ -865,13 +886,13 @@ objNameStr \
 // |         D E S T R U C T O R          |
 // ----------------------------------------
 
-/*
- * Technical info:
- * Check object validity if needed.
- * Call all destructors of the base classes from derived classes to base classes.
- * Clean (set to nil) all members of this object.
- * If the object was global, also broadcast this.
- */
+// /*
+//  * Technical info:
+//  * Check object validity if needed.
+//  * Call all destructors of the base classes from derived classes to base classes.
+//  * Clean (set to nil) all members of this object.
+//  * If the object was global, also broadcast this.
+//  */
 
 #ifdef OOP_ASSERT
 #define DESTRUCTOR_ASSERT_OBJECT(objNameStr) if (!([objNameStr, __FILE__, __LINE__] call OOP_assert_object)) exitWith {};
@@ -970,13 +991,17 @@ diag_log format ["[REF/UNREF]: UNREF: %1, %2, %3", objNameStr, __FILE__, __LINE_
 
 #ifdef ADE
 #define DUMP_CALLSTACK ade_dumpCallstack
+#define ADE_HALT halt
+#define ADE_ASSERT assert 
 #else
-#define DUMP_CALLSTACK 
+#define DUMP_CALLSTACK diag_log "callstack"
+#define ADE_HALT diag_log "halt"
+#define ADE_ASSERT
 #endif
 
 // If ofstream addon is globally enabled
 #ifdef OFSTREAM_ENABLE
-#define __OFSTREAM_OUT(fileName, text) ((ofstream_new fileName) ofstream_write(text))
+#define __OFSTREAM_OUT(fileName, text) ((ofstream_new (fileName)) ofstream_write(text))
 #define WRITE_CRITICAL(text) ((ofstream_new "Critical.rpt") ofstream_write(text))
 #else
 
@@ -988,9 +1013,11 @@ diag_log format ["[REF/UNREF]: UNREF: %1, %2, %3", objNameStr, __FILE__, __LINE_
 #define _OFSTREAM_FILE OFSTREAM_FILE
 
 #ifdef OFSTREAM_FILE
-#define WRITE_LOG(str) __OFSTREAM_OUT(OFSTREAM_FILE, str)
+#define WRITE_LOG(msg) __OFSTREAM_OUT(OFSTREAM_FILE, msg)
+#define WRITE_LOGF(file, msg) __OFSTREAM_OUT(file,  msg)
 #else
-#define WRITE_LOG(str) diag_log TEXT_ str
+#define WRITE_LOG(msg) diag_log TEXT_ msg
+#define WRITE_LOGF(file, msg) diag_log TEXT_ msg
 #endif
 
 #ifdef OOP_PROFILE
@@ -1050,14 +1077,14 @@ diag_log format ["[REF/UNREF]: UNREF: %1, %2, %3", objNameStr, __FILE__, __LINE_
 #endif
 
 #ifdef OOP_ERROR
-#define OOP_ERROR_MSG(str, a) private _o_str = format ["[%1.%2] ERROR: %3", LOG_0, LOG_1, format ([str]+a) ]; WRITE_LOG(_o_str); diag_log _o_str; WRITE_CRITICAL(_o_str)
-#define OOP_ERROR_0(str) private _o_str = format ["[%1.%2] ERROR: %3", LOG_0, LOG_1, str]; WRITE_LOG(_o_str); diag_log _o_str; WRITE_CRITICAL(_o_str)
-#define OOP_ERROR_1(str, a) private _o_str = format ["[%1.%2] ERROR: %3", LOG_0, LOG_1, format [str, a]]; WRITE_LOG(_o_str); diag_log _o_str; WRITE_CRITICAL(_o_str)
-#define OOP_ERROR_2(str, a, b) private _o_str = format ["[%1.%2] ERROR: %3", LOG_0, LOG_1, format [str, a, b]]; WRITE_LOG(_o_str); diag_log _o_str; WRITE_CRITICAL(_o_str)
-#define OOP_ERROR_3(str, a, b, c) private _o_str = format ["[%1.%2] ERROR: %3", LOG_0, LOG_1, format [str, a, b, c]]; WRITE_LOG(_o_str); diag_log _o_str; WRITE_CRITICAL(_o_str)
-#define OOP_ERROR_4(str, a, b, c, d) private _o_str = format ["[%1.%2] ERROR: %3", LOG_0, LOG_1, format [str, a, b, c, d]]; WRITE_LOG(_o_str); diag_log _o_str; WRITE_CRITICAL(_o_str)
-#define OOP_ERROR_5(str, a, b, c, d, e) private _o_str = format ["[%1.%2] ERROR: %3", LOG_0, LOG_1, format [str, a, b, c, d, e]]; WRITE_LOG(_o_str); diag_log _o_str; WRITE_CRITICAL(_o_str)
-#define OOP_ERROR_6(str, a, b, c, d, e, f) private _o_str = format ["[%1.%2] ERROR: %3", LOG_0, LOG_1, format [str, a, b, c, d, e, f]]; WRITE_LOG(_o_str); diag_log _o_str; WRITE_CRITICAL(_o_str)
+#define OOP_ERROR_MSG(str, a) private _o_str = format ["[%1.%2] ERROR: %3", LOG_0, LOG_1, format ([str]+a) ]; WRITE_LOG(_o_str); diag_log _o_str; WRITE_CRITICAL(_o_str); ADE_HALT
+#define OOP_ERROR_0(str) private _o_str = format ["[%1.%2] ERROR: %3", LOG_0, LOG_1, str]; WRITE_LOG(_o_str); diag_log _o_str; WRITE_CRITICAL(_o_str); ADE_HALT
+#define OOP_ERROR_1(str, a) private _o_str = format ["[%1.%2] ERROR: %3", LOG_0, LOG_1, format [str, a]]; WRITE_LOG(_o_str); diag_log _o_str; WRITE_CRITICAL(_o_str); ADE_HALT
+#define OOP_ERROR_2(str, a, b) private _o_str = format ["[%1.%2] ERROR: %3", LOG_0, LOG_1, format [str, a, b]]; WRITE_LOG(_o_str); diag_log _o_str; WRITE_CRITICAL(_o_str); ADE_HALT
+#define OOP_ERROR_3(str, a, b, c) private _o_str = format ["[%1.%2] ERROR: %3", LOG_0, LOG_1, format [str, a, b, c]]; WRITE_LOG(_o_str); diag_log _o_str; WRITE_CRITICAL(_o_str); ADE_HALT
+#define OOP_ERROR_4(str, a, b, c, d) private _o_str = format ["[%1.%2] ERROR: %3", LOG_0, LOG_1, format [str, a, b, c, d]]; WRITE_LOG(_o_str); diag_log _o_str; WRITE_CRITICAL(_o_str); ADE_HALT
+#define OOP_ERROR_5(str, a, b, c, d, e) private _o_str = format ["[%1.%2] ERROR: %3", LOG_0, LOG_1, format [str, a, b, c, d, e]]; WRITE_LOG(_o_str); diag_log _o_str; WRITE_CRITICAL(_o_str); ADE_HALT
+#define OOP_ERROR_6(str, a, b, c, d, e, f) private _o_str = format ["[%1.%2] ERROR: %3", LOG_0, LOG_1, format [str, a, b, c, d, e, f]]; WRITE_LOG(_o_str); diag_log _o_str; WRITE_CRITICAL(_o_str); ADE_HALT
 #else
 #define OOP_ERROR_MSG(str, a)
 #define OOP_ERROR_0(str)
@@ -1087,6 +1114,26 @@ diag_log format ["[REF/UNREF]: UNREF: %1, %2, %3", objNameStr, __FILE__, __LINE_
 #define OOP_DEBUG_4(str, a, b, c, d)
 #define OOP_DEBUG_5(str, a, b, c, d, e)
 #define OOP_DEBUG_6(str, a, b, c, d, e, f)
+#endif
+
+#ifdef OOP_LOGF
+#define OOP_LOGF_MSG(f, msg, a) private _o_str = format ([msg]+a); WRITE_LOGF(f, _o_str)
+#define OOP_LOGF_0(f, msg) private _o_str = msg; WRITE_LOGF(f, _o_str)
+#define OOP_LOGF_1(f, msg, a) private _o_str = format [msg, a]; WRITE_LOGF(f, _o_str)
+#define OOP_LOGF_2(f, msg, a, b) private _o_str = format [msg, a, b]; WRITE_LOGF(f, _o_str)
+#define OOP_LOGF_3(f, msg, a, b, c) private _o_str = format [msg, a, b, c]; WRITE_LOGF(f, _o_str)
+#define OOP_LOGF_4(f, msg, a, b, c, d) private _o_str = format [msg, a, b, c, d]; WRITE_LOGF(f, _o_str)
+#define OOP_LOGF_5(f, msg, a, b, c, d, e) private _o_str = format [msg, a, b, c, d, e]; WRITE_LOGF(f, _o_str)
+#define OOP_LOGF_6(f, msg, a, b, c, d, e, f) private _o_str = format [msg, a, b, c, d, e]; WRITE_LOGF(f, _o_str)
+#else
+#define OOP_LOGF_MSG(f, msg, a)
+#define OOP_LOGF_0(f, msg)
+#define OOP_LOGF_1(f, msg, a)
+#define OOP_LOGF_2(f, msg, a, b)
+#define OOP_LOGF_3(f, msg, a, b, c)
+#define OOP_LOGF_4(f, msg, a, b, c, d)
+#define OOP_LOGF_5(f, msg, a, b, c, d, e)
+#define OOP_LOGF_6(f, msg, a, b, c, d, e, f)
 #endif
 
 // ----------------------------------------------------------------------
@@ -1127,6 +1174,15 @@ diag_log format ["[REF/UNREF]: UNREF: %1, %2, %3", objNameStr, __FILE__, __LINE_
 #define IS_PUBLIC(objNameStr) (! (isNil {GET_MEM(objNameStr, OOP_PUBLIC_STR)} ) )
 
 // ----------------------------------------------------------------------
+// |                       R E M O T E   E X E C                        |
+// ----------------------------------------------------------------------
+#define ON_ALL 		0
+#define ON_SERVER 	2
+#define ON_CLIENTS	([0, -2] select isDedicated)
+#define NO_JIP 		false
+#define ALWAYS_JIP	true
+
+// ----------------------------------------------------------------------
 // |                               M I S C                              |
 // ----------------------------------------------------------------------
 #define ARG ,
@@ -1143,7 +1199,22 @@ diag_log format ["[REF/UNREF]: UNREF: %1, %2, %3", objNameStr, __FILE__, __LINE_
 #define NULL_OBJECT ""
 #define OOP_OBJECT_TYPE ""
 
-#define ON_ALL 		0
-#define ON_SERVER 	2
-#define ON_CLIENTS -2
-#define NO_JIP 		false
+// ----------------------------------------------------------------------
+// |                               M A T H                              |
+// ----------------------------------------------------------------------
+
+// Zero the height component of a vector
+#define ZERO_HEIGHT(pos) ([(pos) select 0, (pos) select 1, 0])
+
+// Clamp val_ between min_ and max_
+#define CLAMP(val_, min_, max_) ((min_) max (val_) min (max_))
+// Return greater of two numbers
+#define MAXIMUM(a_, b_) ((a_) max (b_))
+// Return lesser of two numbers
+#define MINIMUM(a_, b_) ((a_) min (b_))
+// Clamp val_ between 0 and 1
+#define SATURATE(val_) CLAMP(val_, 0, 1)
+// Clamp val_ between 0 and +inf
+#define CLAMP_POSITIVE(val_) MAXIMUM(val_, 0)
+// Clamp val_ between 0 and -inf
+#define CLAMP_NEGATIVE(val_) MINIMUM(val_, 0)

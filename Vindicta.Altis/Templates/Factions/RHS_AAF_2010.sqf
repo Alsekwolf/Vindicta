@@ -8,8 +8,8 @@ _array set [T_SIZE-1, nil];									//Make an array having the size equal to the
 
 // Name, description, faction, addons, etc
 _array set [T_NAME, "tRHS_AAF_2010"];
-_array set [T_DESCRIPTION, "Various units from AAF 2017 and RHS addons with special loadouts for this mission. 2010 variant."];
-_array set [T_DISPLAY_NAME, "RHS AAF 2010 (Custom)"];
+_array set [T_DESCRIPTION, "Altis Armed Forces units. 2010 variant. Uses RHS and AAF2017."];
+_array set [T_DISPLAY_NAME, "RHS AAF 2010 Custom"];
 _array set [T_FACTION, T_FACTION_Military];
 _array set [T_REQUIRED_ADDONS, [
 								"FGN_AAF_Troops",	// AAF 2017
@@ -18,11 +18,10 @@ _array set [T_REQUIRED_ADDONS, [
 								"rhssaf_c_troops",
 								"rhsgref_c_troops"]];
 
-
 //==== Infantry ====
 _inf = [];
 _inf resize T_INF_SIZE;
-_inf set [T_INF_DEFAULT, ["FGN_AAF_Inf_Rifleman"]];
+_inf set [T_INF_default, ["FGN_AAF_InfRes_Rifleman"]];
 
 _inf set [T_INF_SL, ["RHS_AAF_2010_SL","RHS_AAF_2010_SL_2"]];
 _inf set [T_INF_TL, ["RHS_AAF_2010_TL"]];
@@ -34,7 +33,7 @@ _inf set [T_INF_sniper, ["RHS_AAF_2010_sniper","RHS_AAF_2010_sniper_2"]];
 _inf set [T_INF_spotter, ["RHS_AAF_2010_spotter"]];
 _inf set [T_INF_exp, ["RHS_AAF_2010_explosives"]];
 _inf set [T_INF_ammo, ["RHS_AAF_2010_AT_2","RHS_AAF_2010_MG_2"]];
-_inf set [T_INF_LAT, ["RHS_AAF_2010_LAT"]];
+_inf set [T_INF_LAT, ["RHS_AAF_2010_LAT", "RHS_AAF_2010_AT_3"]];
 _inf set [T_INF_AT, ["RHS_AAF_2010_AT","RHS_AAF_2010_AT_3"]];
 _inf set [T_INF_AA, ["RHS_AAF_2010_AA"]];
 _inf set [T_INF_LMG, ["RHS_AAF_2010_LMG"]];
@@ -64,7 +63,7 @@ _inf set [T_INF_recon_JTAC, ["RHS_AAF_2010_recon_JTAC"]];
 
 
 //==== Vehicles ====
-_veh = +(tDefault select T_VEH);
+_veh = [];
 _veh set [T_VEH_SIZE-1, nil];
 _veh set [T_VEH_DEFAULT, ["FGN_AAF_M1025_unarmed"]];
 
@@ -74,14 +73,14 @@ _veh set [T_VEH_car_armed, ["FGN_AAF_M1025_M2", "FGN_AAF_M1025_MK19"]];
 //cars are in MRAPS until cars are added properly
 _veh set [T_VEH_MRAP_unarmed, ["FGN_AAF_M1025_unarmed", "FGN_AAF_M998_2D_Fulltop", "FGN_AAF_M998_4D_Fulltop", "FGN_AAF_M998_2D_Halftop"]];
 _veh set [T_VEH_MRAP_HMG, ["FGN_AAF_M1025_M2"]];
-_veh set [T_VEH_MRAP_GMG, ["rhsusf_M1117_D","FGN_AAF_M1025_MK19"]];
+_veh set [T_VEH_MRAP_GMG, ["FGN_AAF_M1025_MK19","rhsusf_M1117_D"]];
 
 _veh set [T_VEH_IFV, ["rhs_bmp1p_vdv"]];
 _veh set [T_VEH_APC, ["rhsusf_m113d_usarmy_supply", "rhsusf_m113d_usarmy", "rhsusf_m113d_usarmy_MK19", "rhsusf_m113d_usarmy_unarmed", "rhsusf_m113d_usarmy_M240"]];
 _veh set [T_VEH_MBT, ["rhs_t72ba_tv", "rhs_t72bb_tv"]];
 _veh set [T_VEH_MRLS, ["FGN_AAF_BM21"]];
 _veh set [T_VEH_SPA, ["rhs_2s1_tv"]];
-_veh set [T_VEH_SPAA, ["FGN_AAF_Ural_ZU23", "rhs_zsu234_aa"]]; 
+_veh set [T_VEH_SPAA, ["FGN_AAF_Ural_ZU23", "rhs_zsu234_aa"]];
 
 _veh set [T_VEH_stat_HMG_high, ["RHS_M2StaticMG_D"]];
 //_veh set [T_VEH_stat_GMG_high, [""]];
@@ -93,7 +92,7 @@ _veh set [T_VEH_stat_AT, ["RHS_TOW_TriPod_D"]];
 _veh set [T_VEH_stat_mortar_light, ["RHS_M252_D"]];
 _veh set [T_VEH_stat_mortar_heavy, ["RHS_M119_D"]];
 
-_veh set [T_VEH_heli_light, ["rhs_uh1h_hidf", "RHS_MELB_H6M", "RHS_MELB_MH6M"]]; 
+_veh set [T_VEH_heli_light, ["rhs_uh1h_hidf", "RHS_MELB_H6M", "RHS_MELB_MH6M"]];
 _veh set [T_VEH_heli_heavy, ["rhs_uh1h_hidf_gunship", "RHS_MELB_AH6M"]];
 _veh set [T_VEH_heli_cargo, ["rhs_uh1h_hidf_unarmed"]];
 _veh set [T_VEH_heli_attack, ["RHS_Mi24V_vvs", "RHS_Mi24P_vvs"]];
@@ -121,19 +120,18 @@ _veh set [T_VEH_truck_fuel, ["FGN_AAF_Ural_Fuel"]];
 
 //==== Drones ====
 _drone = +(tDefault select T_DRONE);
-_drone set [T_DRONE_SIZE-1, nil];
-_drone set [T_DRONE_DEFAULT, ["rhs_pchela1t_vvsc"]];
-
-//_drone set [T_DRONE_UGV_unarmed, ["B_UGV_01_F"]];
-//_drone set [T_DRONE_UGV_armed, ["B_UGV_01_rcws_F"]];
-//_drone set [T_DRONE_plane_attack, ["B_UAV_02_dynamicLoadout_F"]];
-//_drone set [T_DRONE_plane_unarmed, ["B_UAV_02_dynamicLoadout_F"]];
-//_drone set [T_DRONE_heli_attack, ["B_T_UAV_03_dynamicLoadout_F"]];
-//_drone set [T_DRONE_quadcopter, ["B_UAV_01_F"]];
-//_drone set [T_DRONE_designator, ["B_Static_Designator_01_F"]];
-//_drone set [T_DRONE_stat_HMG_low, ["B_HMG_01_A_F"]];
-//_drone set [T_DRONE_stat_GMG_low, ["B_GMG_01_A_F"]];
-//_drone set [T_DRONE_stat_AA, ["B_SAM_System_03_F"]];
+//_drone set [T_DRONE_SIZE-1, nil];
+//_drone set [T_DRONE_DEFAULT, ["I_UGV_01_F"]];
+//_drone set [T_DRONE_UGV_unarmed, ["I_UGV_01_F"]];
+//_drone set [T_DRONE_UGV_armed, ["I_UGV_01_rcws_F"]];
+//_drone set [T_DRONE_plane_attack, ["I_UAV_02_dynamicLoadout_F"]];
+//_drone set [T_DRONE_plane_unarmed, ["I_UAV_02_dynamicLoadout_F"]];
+//_drone set [T_DRONE_heli_attack, ["I_UAV_02_dynamicLoadout_F"]];
+//_drone set [T_DRONE_quadcopter, ["I_UAV_01_F"]];
+//_drone set [T_DRONE_designator, [""]];
+//_drone set [T_DRONE_stat_HMG_low, ["I_HMG_01_A_F"]];
+//_drone set [T_DRONE_stat_GMG_low, ["I_GMG_01_A_F"]];
+//_drone set [T_DRONE_stat_AA, [""]];
 
 //==== Cargo ====
 _cargo = +(tDefault select T_CARGO);

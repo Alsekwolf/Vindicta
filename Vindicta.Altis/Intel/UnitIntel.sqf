@@ -252,7 +252,7 @@ CLASS("UnitIntel", "")
 							if (_index != -1) then { // If it's the document item, delete it and 'inspect' it
 								// Call code to inspect the intel item
 								CALLSM1("UnitIntel", "inspectIntel", _data);
-								_deleteItem = true;							
+								_deleteItem = true;
 							}; // if (_data == ...)
 
 							if (_data == "vin_pills") then {
@@ -324,7 +324,7 @@ CLASS("UnitIntel", "")
 
 	// Called on player's computer when he picks up the intel item
 	STATIC_METHOD("inspectIntel") {
-		params ["_thisObject", ["_fullClassName", "", [""]] ];
+		params [P_THISOBJECT, P_STRING("_fullClassName") ];
 
 		// Get base class name and ID of this intel item
 		pr _classAndID = CALLSM1("PersonalInventory", "getBaseClassAndID", _fullClassName);
@@ -337,15 +337,6 @@ CLASS("UnitIntel", "")
 		//REMOTE_EXEC_CALL_METHOD(_playerCommander, "getIntelFromInventoryItem", [_baseClass ARG _ID ARG clientOwner], 2);
 
 		private _inst = CALLSM0("TacticalTablet", "newInstance");
-
-		private _tipOfTheDay = 	[	"Always wear a helmet, even at base!",
-									"Have you checked your ammo?",
-									"Stay alert when on patrol!",
-									"Ensure your radio frequency and channel!",
-									"Never do a selfie in fight!",
-									"Remember to stay in formation, ... but not too close!",
-									"Remember to check fuel of your vehicles!",
-									"Find your gun safety switch before fight!"];
 
 		// Make us some time while we are waiting for server response...
 		pr _endl = toString [13,10];
@@ -362,7 +353,7 @@ CLASS("UnitIntel", "")
 		CALLM2(_inst,"appendTextDelay", _text, 0.05);
 
 		CALLM2(_inst,"appendTextDelay", _endl + "Tip of the day:" + _endl,  0.1 + random 0.2);
-		CALLM2(_inst,"appendTextDelay", selectrandom _tipOfTheDay, 0);
+		CALLM2(_inst,"appendTextDelay", selectrandom gCombatTips, 0);
 		CALLM2(_inst,"appendTextDelay", _endl, 0);
 
 		CALLM2(_inst,"appendTextDelay", _endl + "Connecting to TactiCommNetwork server..." + _endl,  0.15 + random 0.2);
